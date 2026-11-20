@@ -106,13 +106,16 @@ class _Responses:
     """Stands in for the OpenAI-style `responses` object."""
 
     def __init__(self):
-        # call_id -> the exact part Gemini sent. Gemini needs its own part back (it carries a
-        # signature) when a tool call is replayed in the history.
-        self._calls: dict[str, types.Part] = {}
+        # Gemini will not accept a tool call back unless it is the exact part Gemini sent: the
+        # parts of one reply carry a signature between them, and a rebuilt copy is rejected with
+        # "Function call is missing a thought_signature". So keep each reply's parts whole.
+        self._turns: dict[str, list[types.Part]] = {}   # turn id -> that reply's parts, in order
+        self._calls: dict[str, str] = {}                # call id -> the turn it came from
         self._names: dict[str, str] = {}
 
     def _history(self, items: list) -> tuple[str | None, list[types.Content]]:
         system, contents = [], []
+        done: set[str] = set()
 
         def add(role: str, parts: list[types.Part]):
             if not parts:
@@ -126,10 +129,14 @@ class _Responses:
             kind = item.get("type", "message")
             if kind == "function_call":
                 cid = item.get("call_id", "")
-                self._names[cid] = item.get("name", "")
-                part = self._calls.get(cid) or types.Part(function_call=types.FunctionCall(
-                    name=item.get("name", ""), args=json.loads(item.get("arguments") or "{}")))
-                add("model", [part])
+                self._names.setdefault(cid, item.get("name", ""))
+                turn = self._calls.get(cid)
+                if turn is None:   # not ours: rebuild it, the best we can do
+                    add("model", [types.Part(function_call=types.FunctionCall(
+                        name=item.get("name", ""), args=json.loads(item.get("arguments") or "{}")))])
+                elif turn not in done:   # replay that whole reply once, parts and signatures intact
+                    done.add(turn)
+                    add("model", self._turns[turn])
             elif kind == "function_call_output":
                 cid = item.get("call_id", "")
                 try:
@@ -185,10 +192,13 @@ class _Responses:
     def _wrap(self, resp, used: str = "") -> SimpleNamespace:
         output, texts = [], []
         cand = (resp.candidates or [None])[0]
-        for part in (cand.content.parts if cand and cand.content and cand.content.parts else []):
+        parts = list(cand.content.parts) if cand and cand.content and cand.content.parts else []
+        turn = "turn_" + uuid.uuid4().hex[:12]
+        self._turns[turn] = parts
+        for part in parts:
             if part.function_call:
                 cid = part.function_call.id or "call_" + uuid.uuid4().hex[:12]
-                self._calls[cid] = part
+                self._calls[cid] = turn
                 self._names[cid] = part.function_call.name
                 output.append(SimpleNamespace(type="function_call", call_id=cid, name=part.function_call.name,
                                               arguments=json.dumps(dict(part.function_call.args or {}))))
