@@ -16,3 +16,5 @@ models/*.joblib
 # Large or licensed source material (store links, not files)
 manuals/*.pdf
 raw_footage/
+
+faultlens_offline.html
