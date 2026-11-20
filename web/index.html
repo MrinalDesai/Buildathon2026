@@ -1,0 +1,1739 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FaultLens</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ground: #EEF0EC;
+  --surface: #FFFFFF;
+  --ink: #16222B;
+  --ink-soft: #4E5C66;
+  --rule: #C9CFD2;
+  --low: #1E63C6;      /* gauge low side */
+  --high: #C8372D;     /* gauge high side */
+  --tag: #F3C623;      /* safety tag */
+  --ok: #2F7D4F;
+  --radius-s: 4px;
+  --radius-m: 8px;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--ground); color: var(--ink);
+  font: 16px/1.5 "Barlow", system-ui, sans-serif;
+}
+h1, h2, h3 { font-family: "Barlow Semi Condensed", "Barlow", sans-serif; line-height: 1.15; margin: 0; }
+h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: .01em; }
+h2 { font-size: 1.25rem; font-weight: 600; }
+h3 { font-size: 1.05rem; font-weight: 600; }
+p { margin: 0; }
+.num { font-variant-numeric: tabular-nums; }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--low); outline-offset: 2px; }
+
+/* top bar */
+.bar {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  padding: 14px 24px; background: var(--ink); color: #fff;
+}
+.bar .unit { color: #B9C4CB; font-size: .95rem; }
+.bar nav { margin-left: auto; display: flex; gap: 4px; max-width: 100%; overflow-x: auto; }
+.bar nav button { white-space: nowrap; flex: none; }
+.bar nav button {
+  background: none; border: 0; color: #B9C4CB; padding: 6px 12px; border-radius: var(--radius-s); cursor: pointer;
+}
+.bar nav button[aria-pressed="true"] { color: #fff; background: rgba(255,255,255,.12); }
+.mode { font-size: .85rem; padding: 2px 8px; border: 1px solid var(--tag); color: var(--tag); border-radius: var(--radius-s); }
+
+main { max-width: 1240px; margin: 0 auto; padding: 24px; }
+.layout { display: grid; grid-template-columns: 380px 1fr; gap: 24px; align-items: start; }
+@media (max-width: 960px) { .layout { grid-template-columns: 1fr; } main { padding: 16px; } }
+
+.guide { display: grid; gap: 14px; max-width: 900px; margin: 0 auto; }
+.guidehead h2 { font-size: 1.5rem; margin-bottom: 8px; }
+.guidehead p { margin: 0 0 10px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
+.chips span { border: 1px solid var(--rule); border-radius: 999px; padding: 4px 10px; font-size: .85rem; background: var(--ground); }
+.tour { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; counter-reset: step; }
+.tour > li { counter-increment: step; }
+.tourhead { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+.tourhead b { font-size: 1.1rem; }
+.tourhead b::before { content: counter(step) ". "; }
+.tourhead .btn { margin-left: auto; width: auto; padding: 6px 18px; }
+.tour ol { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
+.panel { background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius-m); padding: 20px; }
+.layout > * { min-width: 0; }
+.evidence { position: sticky; top: 16px; display: grid; gap: 20px; }
+@media (max-width: 960px) { .evidence { position: static; } }
+.field { display: grid; gap: 8px; }
+.field > label, .field > .label { font-weight: 600; }
+.hint { color: var(--ink-soft); font-size: .9rem; }
+
+.drop {
+  display: grid; place-items: center; text-align: center; gap: 4px;
+  border: 2px dashed var(--rule); border-radius: var(--radius-m); padding: 18px; cursor: pointer;
+}
+.drop:hover, .drop.over { border-color: var(--low); }
+.thumbs { display: flex; gap: 6px; flex-wrap: wrap; }
+.thumbs span { font-size: .85rem; background: var(--ground); padding: 2px 8px; border-radius: var(--radius-s); }
+
+select, textarea, input[type=text] {
+  width: 100%; border: 1px solid var(--rule); border-radius: var(--radius-s); padding: 8px 10px; background: #fff;
+}
+textarea { font-size: .8rem; min-height: 90px; font-variant-numeric: tabular-nums; }
+details summary { cursor: pointer; color: var(--ink-soft); font-size: .9rem; }
+
+.row { display: flex; gap: 8px; }
+.row > input { flex: 1; }
+.btn {
+  border: 1px solid var(--ink); background: #fff; border-radius: var(--radius-s);
+  padding: 8px 14px; cursor: pointer; font-weight: 600; white-space: nowrap;
+}
+.btn:hover { background: var(--ground); }
+.btn.primary { background: var(--ink); color: #fff; width: 100%; padding: 12px; font-size: 1.05rem; }
+.btn.primary:hover { background: #24343F; }
+.btn.rec { border-color: var(--high); color: var(--high); }
+.btn.rec[aria-pressed="true"] { background: var(--high); color: #fff; }
+.reclive { min-width: 0; overflow: hidden; contain: inline-size; margin-top: 8px; border: 1px solid var(--rule); border-radius: var(--radius-s); padding: 8px 10px; background: var(--surface); }
+.reclive canvas { display: block; width: 100%; max-width: 100%; height: 56px; }
+.recbar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }
+.recbar .hint { overflow-wrap: anywhere; }
+.recdot { width: 10px; height: 10px; border-radius: 50%; background: var(--high); flex: none; animation: recblink 1s infinite; }
+@keyframes recblink { 50% { opacity: .2; } }
+@media (prefers-reduced-motion: reduce) { .recdot { animation: none; } }
+.btn:disabled { opacity: .5; cursor: progress; }
+
+.notes { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.notes li { display: flex; gap: 8px; align-items: start; background: var(--ground); padding: 6px 10px; border-radius: var(--radius-s); }
+.notes li span { flex: 1; }
+.notes li button { border: 0; background: none; color: var(--ink-soft); cursor: pointer; }
+.toggles { display: grid; gap: 6px; }
+.toggles label { display: flex; gap: 8px; align-items: center; }
+
+/* pipeline: a real sequence, so connected stages */
+.pipeline { display: flex; align-items: stretch; gap: 0; margin-bottom: 20px; overflow-x: auto; }
+.stage {
+  flex: 1; min-width: 120px; padding: 10px 12px; border: 1px solid var(--rule); background: var(--surface);
+  margin-left: -1px; font-size: .9rem;
+}
+.stage:first-child { border-radius: var(--radius-m) 0 0 var(--radius-m); margin-left: 0; }
+.stage:last-child { border-radius: 0 var(--radius-m) var(--radius-m) 0; }
+.stage b { display: block; font-family: "Barlow Semi Condensed", sans-serif; font-size: 1rem; }
+.stage small { color: var(--ink-soft); }
+.stage[data-state="running"] { border-color: var(--low); box-shadow: inset 0 -3px 0 var(--low); }
+.stage[data-state="done"] { box-shadow: inset 0 -3px 0 var(--ok); }
+.stage[data-state="skipped"] { color: var(--ink-soft); background: transparent; }
+
+.empty { padding: 48px 24px; text-align: center; color: var(--ink-soft); }
+.empty h2 { color: var(--ink); margin-bottom: 8px; }
+
+.results { display: grid; gap: 20px; }
+.headline { display: grid; gap: 6px; }
+.headline .status { font-weight: 600; }
+.headline .status.confident { color: var(--ok); }
+.headline .status.more { color: #8A6A00; }
+.headline p.summary { font-size: 1.15rem; }
+
+.frames { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+.frames figure { margin: 0; }
+.frames img { width: 100%; border-radius: var(--radius-s); display: block; border: 1px solid var(--rule); }
+.frames figcaption { font-size: .85rem; color: var(--ink-soft); margin-top: 4px; }
+
+.causes { display: grid; gap: 10px; }
+.cause { border: 1px solid var(--rule); border-radius: var(--radius-m); background: var(--surface); }
+.cause > button {
+  width: 100%; text-align: left; background: none; border: 0; padding: 12px 14px; cursor: pointer;
+  display: grid; grid-template-columns: 56px 1fr; gap: 4px 12px; align-items: center;
+}
+.cause .pct { font-family: "Barlow Semi Condensed", sans-serif; font-size: 1.4rem; font-weight: 700; grid-row: span 2; }
+.cause .meter { height: 6px; background: var(--ground); border-radius: 3px; overflow: hidden; }
+.cause .meter i { display: block; height: 100%; background: var(--ink-soft); }
+.cause:first-child .meter i { background: var(--low); }
+.cause .why { padding: 0 14px 14px 82px; display: none; gap: 10px; }
+.cause[data-open="true"] .why { display: grid; }
+.why ul { margin: 4px 0 0; padding-left: 18px; }
+.why .against { color: var(--ink-soft); }
+
+/* hang-tag: the one bold element */
+.tag {
+  position: relative; background: var(--tag); color: var(--ink);
+  padding: 16px 18px 16px 52px; border-radius: var(--radius-s) var(--radius-m) var(--radius-m) var(--radius-s);
+  clip-path: polygon(14px 0, 100% 0, 100% 100%, 14px 100%, 0 calc(100% - 14px), 0 14px);
+}
+.tag::before {
+  content: ""; position: absolute; left: 20px; top: 50%; width: 14px; height: 14px; margin-top: -7px;
+  border-radius: 50%; background: var(--ground); box-shadow: inset 0 0 0 3px rgba(22,34,43,.35);
+}
+.tag h3 { margin-bottom: 4px; }
+.tag.danger { background: var(--high); color: #fff; }
+.tag.danger::before { box-shadow: inset 0 0 0 3px rgba(255,255,255,.5); }
+.tag .answer { display: flex; gap: 8px; margin-top: 12px; }
+.tag .answer input { flex: 1; border-color: rgba(22,34,43,.35); }
+
+.check { border-left: 4px solid var(--ink); padding: 4px 0 4px 14px; display: grid; gap: 4px; }
+.verdict { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.verdict b.accept { color: var(--ok); }
+.verdict b.reject { color: var(--high); }
+
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: .92rem; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--rule); }
+th { font-weight: 600; color: var(--ink-soft); }
+td.low { color: var(--low); font-weight: 600; }
+td.high { color: var(--high); font-weight: 600; }
+
+.rounds { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; color: var(--ink-soft); font-size: .9rem; }
+.rounds button { border: 1px solid var(--rule); background: #fff; border-radius: var(--radius-s); padding: 2px 10px; cursor: pointer; }
+.rounds button[aria-current="true"] { border-color: var(--ink); color: var(--ink); font-weight: 600; }
+
+.error { background: #FBE9E7; border: 1px solid var(--high); color: #7A1F18; padding: 12px 14px; border-radius: var(--radius-s); }
+pre.trace { background: var(--ground); padding: 12px; border-radius: var(--radius-s); overflow: auto; font-size: .8rem; max-height: 320px; }
+
+.evalgrid { display: grid; gap: 20px; }
+.score { font-family: "Barlow Semi Condensed", sans-serif; font-size: 1.3rem; font-weight: 700; }
+[hidden] { display: none !important; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .cause .meter i { transition: width .6s ease-out; }
+}
+
+/* ---------- explore ---------- */
+.explore { display: grid; grid-template-columns: 300px 1fr; gap: 24px; align-items: start; }
+.explore > * { min-width: 0; }
+@media (max-width: 960px) { .explore { grid-template-columns: 1fr; } }
+.conditions { display: grid; gap: 6px; position: sticky; top: 16px; }
+@media (max-width: 960px) { .conditions { position: static; } }
+.conditions button {
+  text-align: left; background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius-m);
+  padding: 10px 12px; cursor: pointer; display: grid; gap: 2px;
+}
+.conditions button[aria-current="true"] { border-color: var(--ink); box-shadow: inset 4px 0 0 var(--ink); }
+.conditions small { color: var(--ink-soft); }
+.detail { display: grid; gap: 20px; }
+.samples { display: flex; gap: 6px; flex-wrap: wrap; }
+.samples button { border: 1px solid var(--rule); background: #fff; border-radius: var(--radius-s); padding: 4px 12px; cursor: pointer; }
+.samples button[aria-current="true"] { border-color: var(--ink); font-weight: 600; }
+.signals { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.signal { display: grid; gap: 8px; align-content: start; }
+.signal img { width: 100%; border-radius: var(--radius-s); display: block; }
+.signal audio { width: 100%; }
+.source { font-size: .8rem; padding: 1px 7px; border-radius: var(--radius-s); border: 1px solid var(--rule); color: var(--ink-soft); white-space: nowrap; }
+.source.simulated { border-color: #8A6A00; color: #8A6A00; }
+.source.real-photo { border-color: var(--ok); color: var(--ok); }
+.source.muse-image { border-color: var(--low); color: var(--low); }
+.sighead { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.downloads { display: flex; gap: 12px; flex-wrap: wrap; font-size: .9rem; }
+.downloads a { color: var(--low); }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.actions .btn.primary { width: auto; }
+
+/* ---------- pattern match ---------- */
+.pm { display: grid; gap: 14px; }
+.bars { display: grid; gap: 6px; }
+.bar-row { display: grid; grid-template-columns: minmax(160px, 1fr) 2fr 48px; gap: 10px; align-items: center; font-size: .95rem; }
+.bar-row .track { height: 8px; background: var(--ground); border-radius: 4px; overflow: hidden; }
+.bar-row .track i { display: block; height: 100%; background: var(--ink-soft); }
+.bar-row:first-child .track i { background: var(--low); }
+.bar-row:first-child { font-weight: 600; }
+td.agree { color: var(--ok); }
+td.disagree { color: var(--high); }
+.why-list { margin: 0; padding-left: 16px; font-size: .88rem; color: var(--ink-soft); }
+.received { margin: 0; padding-left: 18px; font-size: .9rem; color: var(--ink-soft); }
+.lib-pick { display: grid; gap: 6px; }
+.scroll { overflow-x: auto; }
+.detail > *, .results > * { min-width: 0; }
+@media (max-width: 600px) { .bar-row { grid-template-columns: 1fr 1fr 40px; } .signals { grid-template-columns: 1fr; } }
+
+/* ---------- play a job ---------- */
+.play { display: grid; grid-template-columns: 340px 1fr; gap: 24px; align-items: start; }
+.play > * { min-width: 0; }
+@media (max-width: 960px) { .play { grid-template-columns: 1fr; } }
+.jobside { display: grid; gap: 16px; position: sticky; top: 16px; }
+@media (max-width: 960px) { .jobside { position: static; } }
+.ticket h2 { margin-bottom: 6px; }
+.ticket .who { font-size: .85rem; opacity: .8; margin-bottom: 6px; }
+.ticket p.complaint { font-size: 1.05rem; }
+.status-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; font-size: .9rem; color: var(--ink-soft); }
+.power {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  border: 2px solid var(--ok); border-radius: var(--radius-m); padding: 10px 12px; background: var(--surface);
+}
+.power[data-on="false"] { border-color: var(--high); }
+.power b { font-family: "Barlow Semi Condensed", sans-serif; font-size: 1.05rem; }
+.power .state { color: var(--ok); font-weight: 600; }
+.power[data-on="false"] .state { color: var(--high); }
+.menu { display: grid; gap: 12px; }
+.menu h3 { font-size: .95rem; color: var(--ink-soft); margin-bottom: 4px; }
+.menu .acts { display: grid; gap: 4px; }
+.act {
+  text-align: left; border: 1px solid var(--rule); background: var(--surface); border-radius: var(--radius-s);
+  padding: 7px 10px; cursor: pointer; display: flex; justify-content: space-between; gap: 8px; align-items: baseline;
+}
+.act:hover { border-color: var(--ink); }
+.act small { color: var(--ink-soft); white-space: nowrap; }
+.act[data-done="true"] { color: var(--ink-soft); background: transparent; }
+.act[data-done="true"]::before { content: "✓ "; color: var(--ok); }
+.act[data-suggested="true"] { border-color: var(--low); box-shadow: inset 4px 0 0 var(--low); font-weight: 600; }
+.act:disabled { cursor: not-allowed; opacity: .55; }
+
+.board { display: grid; gap: 16px; }
+.meter-panel { position: sticky; top: 0; z-index: 2; padding: 12px 16px; box-shadow: 0 6px 12px -10px rgba(22,34,43,.5); }
+.meter-panel h3 { font-size: .95rem; }
+.meter-panel .bar-row { font-size: .88rem; grid-template-columns: minmax(120px, 1.2fr) 1fr 40px; }
+.meter-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+@media (max-width: 700px) { .meter-cols { grid-template-columns: 1fr; } }
+.log { display: grid; gap: 12px; }
+.msg { border-radius: var(--radius-m); padding: 12px 14px; display: grid; gap: 8px; }
+.msg.coach { background: var(--surface); border: 1px solid var(--rule); border-left: 4px solid var(--low); }
+.msg.tech { background: #E4E8E4; }
+.msg.system { background: transparent; color: var(--ink-soft); padding: 2px 4px; font-size: .9rem; }
+.msg .who { font-size: .8rem; color: var(--ink-soft); }
+.msg img { max-width: 100%; border-radius: var(--radius-s); display: block; }
+.msg audio { width: 100%; max-width: 480px; }
+.msg .do { justify-self: start; }
+.thinking { color: var(--ink-soft); font-style: italic; }
+.askrow { display: flex; gap: 8px; position: sticky; bottom: 0; background: var(--ground); padding: 10px 0; }
+.askrow input { flex: 1; }
+.start { display: grid; gap: 16px; padding: 28px; }
+.start .row { flex-wrap: wrap; align-items: center; }
+.start .btn.primary { width: auto; }
+.choices { display: grid; gap: 6px; }
+.choices label { display: flex; gap: 8px; align-items: center; padding: 6px 8px; border: 1px solid var(--rule); border-radius: var(--radius-s); background: #fff; cursor: pointer; }
+.reveal { display: grid; gap: 14px; }
+.points { font-family: "Barlow Semi Condensed", sans-serif; font-size: 3rem; font-weight: 700; line-height: 1; }
+.verdicts { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.verdicts div { border: 1px solid var(--rule); border-radius: var(--radius-m); padding: 10px 12px; background: #fff; }
+.right { color: var(--ok); font-weight: 600; }
+.wrong { color: var(--high); font-weight: 600; }
+
+/* ---------- job cards ---------- */
+.cards { display: grid; grid-template-columns: 320px 1fr; gap: 24px; align-items: start; }
+.cards > * { min-width: 0; }
+@media (max-width: 960px) { .cards { grid-template-columns: 1fr; } }
+.cardlist { display: grid; gap: 6px; position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow: auto; }
+@media (max-width: 960px) { .cardlist { position: static; max-height: none; } }
+.cardlist button { text-align: left; background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius-m); padding: 8px 12px; cursor: pointer; display: grid; gap: 2px; }
+.cardlist button[aria-current="true"] { border-color: var(--ink); box-shadow: inset 4px 0 0 var(--ink); }
+.cardlist small { color: var(--ink-soft); }
+.cardview { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 1100px) { .cardview { grid-template-columns: 1fr; } }
+.cardview > * { min-width: 0; }
+.cardview img { width: 100%; border-radius: var(--radius-s); border: 1px solid var(--rule); display: block; }
+pre.json { white-space: pre-wrap; overflow-wrap: anywhere; background: var(--ink); color: #E6EDF0; padding: 14px; border-radius: var(--radius-s); overflow: auto; font-size: .82rem; max-height: 420px; }
+td.match { color: var(--ok); }
+td.nomatch { color: var(--high); }
+.mini { font-size: .88rem; }
+
+/* ---------- parts ---------- */
+.diagram { width: 100%; border: 1px solid var(--rule); border-radius: var(--radius-s); background: #fff; display: block; }
+.partgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.partgrid figure { margin: 0; background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius-m); padding: 8px; cursor: pointer; }
+.partgrid figure[aria-current="true"] { border-color: var(--high); box-shadow: inset 0 0 0 2px var(--high); }
+.partgrid img { width: 100%; aspect-ratio: 1; object-fit: contain; background: #fff; border-radius: var(--radius-s); }
+.noimg { aspect-ratio: 1; display: grid; place-items: center; background: var(--ground); border-radius: var(--radius-s); color: var(--ink-soft); font-size: .8rem; }
+.partgrid figcaption { font-size: .85rem; margin-top: 6px; }
+.pno { display: inline-grid; place-items: center; min-width: 1.6em; height: 1.6em; border-radius: 50%; border: 1.5px solid var(--ink); font-weight: 600; font-size: .8rem; margin-right: 4px; }
+.compare { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.compare img { width: 100%; aspect-ratio: 1; object-fit: contain; background: #fff; border: 1px solid var(--rule); border-radius: var(--radius-s); }
+.logphotos { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.logphotos figure { margin: 0; }
+.logphotos img { width: 100%; border-radius: var(--radius-s); border: 1px solid var(--rule); background: #fff; }
+
+/* ---------- check a part ---------- */
+.pcpick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.pcpick button { padding: 0; border: 1px solid var(--rule); border-radius: var(--radius-s); background: #fff; cursor: pointer; }
+.pcpick button[aria-current="true"] { border-color: var(--ink); box-shadow: 0 0 0 2px var(--ink); }
+.pcpick img { width: 100%; aspect-ratio: 1; object-fit: contain; display: block; border-radius: var(--radius-s); }
+.pcverdict { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: baseline; }
+.pctag { display: inline-block; padding: 3px 10px; border-radius: 99px; font-weight: 600; font-size: .9rem; border: 1.5px solid currentColor; }
+.pctag.bad { color: var(--high); } .pctag.good { color: var(--ok); } .pctag.unclear { color: var(--ink-soft); }
+.pcimgs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 700px) { .pcimgs { grid-template-columns: 1fr 1fr; } }
+.pcimgs figure { margin: 0; } .pcimgs img { width: 100%; border: 1px solid var(--rule); border-radius: var(--radius-s); background: #fff; }
+.known { border-left: 4px solid var(--rule); padding: 6px 12px; background: var(--ground); border-radius: var(--radius-s); }
+.known.yes { border-color: var(--ok); } .known.no { border-color: var(--high); }
+.checkbtn { margin-top: 6px; width: auto; font-size: .85rem; padding: 4px 10px; }
+
+/* phones: wide tables scroll inside their panel, form controls never push the page wider */
+@media (max-width: 700px) { table { display: block; overflow-x: auto; max-width: 100%; } }
+select, input, textarea { max-width: 100%; }
+#playStart, #playStart * { min-width: 0; }
+section > *, .panel, .scroll, .panel > * { min-width: 0; max-width: 100%; }
+.evalgrid { grid-template-columns: minmax(0, 1fr); }
+
+/* ---------- wear stages ---------- */
+.wear { border: 1px solid var(--rule); border-radius: var(--radius-m); padding: 12px; background: var(--surface); display: grid; gap: 10px; }
+.wearstrip { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: 6px; }
+.wearstrip figure { margin: 0; text-align: center; opacity: .55; }
+.wearstrip figure.here { opacity: 1; }
+.wearstrip figure.here img { outline: 3px solid var(--high); outline-offset: 1px; }
+.wearstrip img { width: 100%; aspect-ratio: 1; object-fit: contain; background: #fff; border: 1px solid var(--rule); border-radius: var(--radius-s); }
+.wearstrip figcaption { font-size: .75rem; line-height: 1.2; margin-top: 4px; }
+.wearstrip .missing { aspect-ratio: 1; display: grid; place-items: center; border: 1px dashed var(--rule); border-radius: var(--radius-s); font-size: .7rem; color: var(--ink-soft); padding: 4px; }
+.lifebig { font-size: 1.15rem; font-weight: 600; }
+
+/* ---------- anomaly lab ---------- */
+.lab { display: grid; gap: 16px; }
+.lab .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.lab .controls .seg { display: inline-flex; border: 1px solid var(--rule); border-radius: var(--radius-m); overflow: hidden; }
+.lab .controls .seg button { border: 0; background: var(--surface); padding: 8px 14px; cursor: pointer; font: inherit; }
+.lab .controls .seg button[aria-pressed="true"] { background: var(--ink); color: #fff; }
+.lab .inject { display: flex; flex-wrap: wrap; gap: 8px; }
+.lab .inject button { border: 1.5px solid var(--fc); color: var(--fc); background: var(--surface); border-radius: var(--radius-m); padding: 8px 12px; cursor: pointer; font: inherit; font-weight: 600; }
+.lab .inject button:hover, .lab .inject button[aria-pressed="true"] { background: var(--fc); color: #fff; }
+.lab svg { width: 100%; height: auto; display: block; background: #fff; border: 1px solid var(--rule); border-radius: var(--radius-s); }
+.labverdict { font-size: 1.05rem; line-height: 1.6; }
+.labverdict .vgood { color: var(--ok); font-weight: 700; display: inline; } .labverdict .vbad { color: var(--high); font-weight: 700; display: inline; }
+.labkey { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .85rem; }
+.labkey span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; background: var(--fc); margin-right: 5px; vertical-align: -1px; }
+
+/* ---------- severity ---------- */
+.sevbox { display: grid; gap: 8px; }
+.sevbar { position: relative; display: grid; grid-template-columns: 45fr 35fr 20fr; height: 14px; border-radius: 7px; overflow: hidden; }
+.sevbar span:nth-child(1) { background: #F3D98B; } .sevbar span:nth-child(2) { background: #E9A15A; } .sevbar span:nth-child(3) { background: #C8372D; }
+.sevmark { position: absolute; top: -5px; width: 4px; height: 24px; background: var(--ink); border-radius: 2px; transform: translateX(-2px); }
+.sevlabels { display: grid; grid-template-columns: 45fr 35fr 20fr; font-size: .78rem; color: var(--ink-soft); }
+.lvl { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: .78rem; font-weight: 600; white-space: nowrap; }
+.lvl.normal { background: #E3F2E7; color: #1E6B39; } .lvl.slight { background: #FBEBD0; color: #8A5A10; } .lvl.far { background: #F8D9D6; color: #9E2A20; }
+.lvlkey { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: .8rem; margin-top: 6px; }
+.phnote { font-size: .78rem; color: var(--ink-soft); }
+#sampleBody > div { grid-template-columns: minmax(0, 1fr); }
+.sevbox, .sevlabels span { min-width: 0; }
+.sevlabels span { overflow-wrap: anywhere; }
+.metertile { aspect-ratio: 1; display: grid; place-content: center; gap: 10px; text-align: center; background: #20262B; border-radius: var(--radius-s); padding: 16px; }
+.meterscreen { background: #B9C7A8; color: #1B2416; font-family: "Courier New", monospace; font-size: 2.6rem; font-weight: 700; padding: 12px 22px; border-radius: 6px; box-shadow: inset 0 2px 6px rgba(0,0,0,.35); }
+.meterscreen small { font-size: 1.2rem; }
+.phhidden { aspect-ratio: 1; display: grid; place-items: center; text-align: center; padding: 12px; border: 1px dashed var(--rule); border-radius: var(--radius-s); color: var(--ink-soft); font-size: .85rem; background: var(--ground); }
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <h1>FaultLens</h1>
+  <span class="unit" id="unit">Loading…</span>
+  <span class="mode" id="mode" hidden>Offline mode: canned answers</span>
+  <nav aria-label="Views">
+    <button type="button" data-view="guide" aria-pressed="true">Start here</button>
+    <button type="button" data-view="play" aria-pressed="false">Play a job</button>
+    <button type="button" data-view="explore" aria-pressed="false">Explore faults</button>
+    <button type="button" data-view="partcheck" aria-pressed="false">Check a part</button>
+    <button type="button" data-view="lab" aria-pressed="false">Anomaly lab</button>
+    <button type="button" data-view="cards" aria-pressed="false">Job cards</button>
+    <button type="button" data-view="investigate" aria-pressed="false">Investigate</button>
+    <button type="button" data-view="testset" aria-pressed="false">How it was tested</button>
+  </nav>
+</header>
+
+<main>
+  <!-- START HERE: a guided tour for first-time visitors and judges -->
+  <section id="view-guide" class="guide">
+    <div class="panel guidehead">
+      <h2>FaultLens: a diagnostic assistant for split AC technicians</h2>
+      <p>A customer's AC is not cooling. Is it the capacitor, a gas leak, the fan or the filter? FaultLens works through the job with the technician one check at a time, reads the evidence (sound, thermal images, readings, photos, old job cards, spoken notes), stops unsafe steps, and says what to check next, or that it is not sure yet.</p>
+      <div class="chips"><span>Gemini Flash: reasons, coaches, finds parts in photos</span><span>Gemini Transcribe: spoken notes</span><span>Gemini 4: independent second check</span><span>Gemini Flash-Lite: reads handwriting</span><span>Runs on Google Cloud Run</span></div>
+      <p class="hint">A five-minute tour below. Each step has a button that takes you to the right place. Model answers take 10 to 30 seconds.</p>
+    </div>
+    <ol class="tour">
+      <li class="panel"><div class="tourhead"><b>Play a job</b><span class="hint">about 2 minutes</span><button type="button" class="btn" data-go="play">Go</button></div>
+        <ol><li>Click <b>Start a mystery job</b>. You are the technician; the fault is hidden.</li>
+          <li>Follow FaultLens's suggestion (the button under each of its messages), or pick any check from the list on the left.</li>
+          <li>Try something unsafe on purpose, such as <b>Inspect the capacitors</b> while the unit is running: it is stopped, and it costs points.</li>
+          <li>Type a question in <b>Ask FaultLens</b> at the bottom, for example "why not the fan motor?".</li>
+          <li>Click <b>Make the diagnosis</b>. The result shows your answer, FaultLens's, a second model's review, the faulty part outlined, and public guidance for the fix.</li></ol></li>
+      <li class="panel"><div class="tourhead"><b>Check a part</b><span class="hint">about 1 minute</span><button type="button" class="btn" data-go="partcheck">Go</button></div>
+        <ol><li>Pick a photo from the library on the left, or upload your own photo of an AC part.</li>
+          <li>FaultLens names the part, says whether it is damaged and what to do, and whether the damage <b>causes</b> the fault or is only a <b>symptom</b> of one elsewhere.</li>
+          <li>For filters, the outdoor coil, the fan hub and pipes, it places the photo on a wear scale and gives the typical remaining life: preventive maintenance.</li></ol></li>
+      <li class="panel"><div class="tourhead"><b>Investigate</b><span class="hint">about 1 minute</span><button type="button" class="btn" data-go="investigate">Go</button></div>
+        <ol><li>Choose a sample under <b>Or start from a library sample</b>, or click <b>Record a voice note</b> and describe a problem (Hindi and English mixed works).</li>
+          <li>Click <b>Investigate</b>. It ranks the possible causes with evidence for and against each, and asks for one specific check when it is not sure.</li></ol></li>
+      <li class="panel"><div class="tourhead"><b>Anomaly lab</b><span class="hint">30 seconds</span><button type="button" class="btn" data-go="lab">Go</button></div>
+        <ol><li>Pick a fault to inject into a healthy unit and watch FaultLens's own pattern model find when it starts and ends (no model credits used).</li>
+          <li>Click <b>Ask FaultLens to explain</b> for a plain-language summary.</li></ol></li>
+      <li class="panel"><div class="tourhead"><b>Job cards</b><span class="hint">30 seconds</span><button type="button" class="btn" data-go="cards">Go</button></div>
+        <ol><li>Pick a handwritten job card. Gemini reads the handwriting into fields, so a unit's history is not lost.</li></ol></li>
+      <li class="panel"><div class="tourhead"><b>How it was tested</b><span class="hint">1 minute</span><button type="button" class="btn" data-go="testset">Go</button></div>
+        <ol><li>Measured results: 93% correct on the full test set against 50% for simple sensor rules, right every time it said it was confident, and 15 of 15 parts identified from photos.</li></ol></li>
+    </ol>
+    <div class="panel"><p class="hint"><b>Honest notes.</b> The sound, thermal images and sensor logs are simulated from physical models of each fault and are labelled as simulated everywhere; photos are generated or from the web and labelled with their source. On this public demo, model calls are limited per visitor and per day to protect the credits. <b>Explore faults</b> shows the full library of simulated signals for every fault.</p></div>
+  </section>
+
+  <!-- PLAY A JOB -->
+  <section id="view-play" hidden>
+    <div id="playStart" class="panel start">
+      <div>
+        <h2>Take a service job</h2>
+        <p>A customer has called about their split AC. You don't know what's wrong. Work through it with FaultLens, one check at a time, the way you would on site.</p>
+      </div>
+      <div class="row">
+        <button type="button" class="btn primary" id="newMystery">Start a mystery job</button>
+        <span class="hint">or practise a known fault:</span>
+        <select id="practiceSel" style="width:auto"></select>
+        <button type="button" class="btn" id="newPractice">Practise</button>
+      </div>
+      <p class="hint">Every job is generated fresh: sound, thermal images and readings differ each time. Unsafe steps are stopped and cost points.</p>
+    </div>
+
+    <div id="playJob" class="play" hidden>
+      <aside class="jobside">
+        <div class="tag ticket" id="ticket"></div>
+        <div class="power" id="power" data-on="true">
+          <div><b>Unit power</b><br><span class="state" id="powerState">On, running</span></div>
+          <button type="button" class="btn" id="powerBtn">Isolate power</button>
+        </div>
+        <div class="status-row" id="jobStatus"></div>
+        <div class="panel menu" id="menu"></div>
+        <button type="button" class="btn primary" id="concludeBtn">Make the diagnosis</button>
+      </aside>
+
+      <div class="board">
+        <div class="panel meter-panel" id="meterPanel">
+          <div class="meter-cols">
+            <div><h3 style="margin-bottom:8px">FaultLens thinks</h3><div class="bars" id="coachBars"><p class="hint">Waiting for the first step.</p></div></div>
+            <div><h3 style="margin-bottom:8px">Pattern match from signals</h3><div class="bars" id="patternBars"><p class="hint">No sound, thermal image or readings collected yet.</p></div></div>
+          </div>
+        </div>
+        <div class="log" id="log" aria-live="polite"></div>
+        <div id="concludePanel" class="panel" hidden></div>
+        <div class="askrow">
+          <input type="text" id="askText" placeholder="Ask FaultLens, e.g. why not the capacitor?" aria-label="Question for FaultLens">
+          <button type="button" class="btn" id="askBtn">Ask</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- EXPLORE -->
+  <section id="view-explore" class="explore" hidden>
+    <div>
+      <div class="conditions" id="conditions" role="list"></div>
+      <p class="hint" style="margin-top:12px">Every fault has the same four signals, so you can compare them side by side.</p>
+    </div>
+    <div class="detail" id="detail">
+      <div class="panel empty"><h2>Loading the reference library</h2></div>
+    </div>
+  </section>
+
+  <!-- ANOMALY LAB -->
+  <section id="view-lab" hidden>
+    <div class="panel lab">
+      <div>
+        <h2>Anomaly lab: inject a fault, then find it</h2>
+        <p class="hint">A healthy unit runs. Partway through, the fault you pick creeps in, the way real faults start, stays, and is then repaired. FaultLens's own pattern model slides a window along the signal and labels every stretch. It runs on the trained model only: no API calls.</p>
+      </div>
+      <div class="controls">
+        <span class="seg" id="labSignal">
+          <button type="button" data-s="sensors" aria-pressed="true">Sensor log, 6 hours</button>
+          <button type="button" data-s="sound" aria-pressed="false">Sound, 60 seconds</button>
+        </span>
+        <span class="hint" id="labSetup"></span>
+      </div>
+      <div class="inject" id="labInject"></div>
+      <div id="labOut"><p class="hint">Pick a fault to inject.</p></div>
+    </div>
+    <div class="panel" id="labReport" style="margin-top:20px"></div>
+  </section>
+
+  <!-- CHECK A PART -->
+  <section id="view-partcheck" class="cards" hidden>
+    <div class="cardlist">
+      <label class="drop" id="pcDrop">
+        <input type="file" id="pcFile" accept="image/*" hidden>
+        <span>Upload a photo of the part</span>
+        <span class="hint">Close up, the part filling the frame</span>
+      </label>
+      <label class="hint" style="display:grid;gap:4px;margin-top:8px">Which part is it?
+        <select id="pcPart"><option value="">Not sure: let FaultLens identify it</option></select></label>
+      <label class="hint" style="display:grid;gap:4px;margin-top:8px">Customer complaint (optional)
+        <input type="text" id="pcComplaint" placeholder="e.g. Outdoor unit hot, room not cooling"></label>
+      <p class="hint" style="margin:12px 2px 6px">Or try a photo from the library:</p>
+      <div class="pcpick" id="pcPick"></div>
+    </div>
+    <div class="panel" id="pcPanel">
+      <div class="empty"><h2>Check a part</h2><p>Photograph a part. FaultLens compares it with the healthy part and with known damage, then says whether to replace it and which fault it causes. For filters, the outdoor coil, the fan hub and copper pipes it also places the photo on a wear scale and says how long the part typically has left.</p></div>
+    </div>
+  </section>
+
+  <!-- JOB CARDS -->
+  <section id="view-cards" class="cards" hidden>
+    <div class="cardlist">
+      <label class="drop" id="cardDrop">
+        <input type="file" id="cardFile" accept=".pdf,image/*" hidden>
+        <span>Upload a job card</span>
+        <span class="hint">PDF or photo</span>
+      </label>
+      <p class="hint" style="margin:6px 2px">Or pick a card from previous visits:</p>
+      <div id="cardList" style="display:grid;gap:6px"></div>
+    </div>
+    <div class="panel" id="cardPanel">
+      <div class="empty"><h2>Read a handwritten job card</h2><p>Pick a card or upload one. FaultLens reads the handwriting and organises it into fields.</p></div>
+    </div>
+  </section>
+
+  <!-- INVESTIGATE -->
+  <section id="view-investigate" class="layout" hidden>
+    <form class="panel evidence" id="evidence" novalidate>
+      <h2>Evidence</h2>
+
+      <div class="field">
+        <span class="label">Files from the unit</span>
+        <label class="drop" id="drop">
+          <input type="file" id="media" multiple hidden
+                 accept=".wav,.csv,.png,.jpg,.jpeg,.webp,.mp4,.mov,audio/wav,image/*,video/*">
+          <span>Choose or drop files</span>
+          <span class="hint">Sound (.wav), thermal images (.png), sensor log or alarm history (.csv), photos or video</span>
+        </label>
+        <ul class="received" id="mediaList"></ul>
+      </div>
+
+      <div class="field lib-pick">
+        <label for="libSample">Or start from a library sample</label>
+        <select id="libSample"><option value="">None</option></select>
+      </div>
+
+      <details>
+        <summary>Paste a sensor log instead</summary>
+        <textarea id="csv" spellcheck="false" placeholder="minute,return_air_c,supply_air_c,…"></textarea>
+      </details>
+
+      <div class="field">
+        <span class="label">What you see, hear or measure</span>
+        <div class="row">
+          <input type="text" id="noteText" placeholder="e.g. outdoor unit hums then clicks" aria-label="Observation">
+          <button type="button" class="btn" id="addNote">Add</button>
+        </div>
+        <button type="button" class="btn rec" id="rec" aria-pressed="false">Record a voice note</button>
+        <div class="reclive" id="recLive" hidden>
+          <div class="recbar"><span class="recdot"></span><b id="recTime">0:00</b><span class="hint" id="recMic"></span></div>
+          <canvas id="recWave" height="56"></canvas>
+          <div class="hint" id="recLevel">Listening…</div>
+        </div>
+        <ul class="notes" id="notes"></ul>
+      </div>
+
+      <div class="toggles">
+        <label><input type="checkbox" id="findParts" checked> Find parts in photos (Gemini)</label>
+        <label><input type="checkbox" id="useChecker" checked> Have a second model check the diagnosis</label>
+      </div>
+
+      <button type="submit" class="btn primary" id="go">Investigate</button>
+    </form>
+
+    <div>
+      <div class="pipeline" id="pipeline" aria-label="Investigation steps">
+        <div class="stage" data-stage="voice"><b>Voice</b><small>Gemini</small></div>
+        <div class="stage" data-stage="parts"><b>Find parts</b><small>Gemini</small></div>
+        <div class="stage" data-stage="pattern"><b>Match patterns</b><small>fusion model</small></div>
+        <div class="stage" data-stage="agent"><b>Reason</b><small>Gemini</small></div>
+        <div class="stage" data-stage="safety"><b>Safety rules</b><small>fixed code</small></div>
+        <div class="stage" data-stage="checker"><b>Check</b><small id="checkerModel">second model</small></div>
+      </div>
+      <div id="out">
+        <div class="panel empty">
+          <h2>Start with what you have</h2>
+          <p>Upload what you recorded at the unit, or pick a library sample, then press Investigate.<br>
+             FaultLens compares it with the fault signatures, explains the match and says what to check next.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TESTED -->
+  <section id="view-testset" hidden>
+    <div class="panel" style="margin-bottom:20px"><p class="hint" style="margin:0"><b>About the saved results on this page.</b> The pattern model results are FaultLens's own and do not depend on the language model. The saved investigation, part-check and image-reading results were measured on the earlier build, which used Meta's Muse Spark, and are labelled that way. They have not been re-run on Gemini yet.</p></div>
+    <div class="panel evalgrid" id="patternReport">
+      <h2>Pattern model</h2>
+      <p class="hint">Loading…</p>
+    </div>
+    <div class="panel evalgrid" id="partcheckReport" style="margin-top:20px">
+      <h2>Check a part on library photos</h2>
+      <p class="hint">Loading…</p>
+    </div>
+    <div class="panel evalgrid" id="visionReport" style="margin-top:20px">
+      <h2>Reading the images (earlier build, Muse Spark)</h2>
+      <p class="hint">Loading…</p>
+    </div>
+    <div class="panel evalgrid" style="margin-top:20px">
+      <div>
+        <h2>Full investigation on the test set</h2>
+        <p class="hint">Sensor logs plus a technician's note, written in plain field language. In the hard half the fault is mild and one key sensor is missing.</p>
+      </div>
+      <div class="row" style="flex-wrap:wrap">
+        <label class="row" style="align-items:center">Cases
+          <select id="evalLimit" style="width:auto">
+            <option value="7">7 (one per condition)</option>
+            <option value="14" selected>14 (easy and hard per condition)</option>
+            <option value="28">All 28</option>
+          </select>
+        </label>
+        <button type="button" class="btn" id="runEval">Run the test set</button>
+      </div>
+      <p class="hint">Each case makes up to three calls to Gemini (sensors only, full evidence, checker).</p>
+      <div id="evalOut"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pct = x => x == null ? "–" : Math.round(x * 100) + "%";
+const state = { files: [], notes: [], rounds: [], shown: -1, titles: {}, library: [], cond: null, sample: null };
+const SIGNAL_NAMES = { sound: "Sound", thermal_indoor: "Thermal, indoor coil", thermal_outdoor: "Thermal, outdoor unit", sensors: "Sensor log" };
+const SOURCE_TEXT = { simulated: "Simulated", "real-photo": "Real photo", chatgpt: "Generated (ChatGPT)", "muse-image": "Generated (Muse Image)", unlabelled: "Source not recorded" };
+const title = c => state.titles[c] || c;
+
+/* ---------- views ---------- */
+function showView(name) {
+  document.querySelectorAll(".bar nav button").forEach(x => x.setAttribute("aria-pressed", x.dataset.view === name));
+  ["guide", "play", "explore", "partcheck", "lab", "cards", "investigate", "testset"].forEach(v => $("#view-" + v).hidden = v !== name);
+  window.scrollTo(0, 0);
+  if (name === "testset") loadReport();
+}
+document.querySelectorAll(".bar nav button").forEach(b => b.addEventListener("click", () => showView(b.dataset.view)));
+document.querySelectorAll("[data-go]").forEach(b => b.addEventListener("click", () => showView(b.dataset.go)));
+
+/* ---------- profile + library ---------- */
+fetch("/api/profile").then(r => r.json()).then(p => {
+  $("#unit").textContent = p.equipment;
+  $("#mode").hidden = !p.mock;
+  $("#checkerModel").textContent = p.models.checker;
+  if (p.public_demo) {   // public demo: the test set is shown from the saved run, not re-run
+    $("#runEval").closest(".row").hidden = true;
+    $("#runEval").closest(".row").insertAdjacentHTML("afterend", `<p class="hint">On the public demo the full test-set run is switched off to protect the model credits. Below is the saved run with live models; run it yourself with <code>python -m eval.run_eval</code>.</p>`);
+  }
+  p.faults.forEach(f => state.titles[f.fault_id] = f.title);
+  initPlay();
+  return fetch("/api/library").then(r => r.json());
+}).then(lib => {
+  state.library = lib.conditions;
+  renderConditions();
+  const first = state.library.find(c => c.samples.length);
+  if (first) selectCondition(first.condition); else $("#detail").innerHTML =
+    `<div class="panel empty"><h2>The library is empty</h2><p>Build it with <code>python -m faultlens.library</code>, then reload.</p></div>`;
+  for (const c of state.library) for (const s of c.samples)
+    $("#libSample").insertAdjacentHTML("beforeend", `<option value="${esc(c.condition)}/${esc(s.id)}">${esc(c.title)}, ${esc(sampleLabel(s, c.condition))}</option>`);
+}).catch(() => $("#unit").textContent = "Server not reachable. Is web/server.py running?");
+
+state.parts = { parts: [], by_fault: {}, outlined_by: "" };
+fetch("/api/parts").then(r => r.json()).then(b => { state.parts = b; if (state.view === "parts") renderParts(); });
+const partName = n => (state.parts.parts.find(p => p.no === n) || {}).name || `Part ${n}`;
+const diagramUrl = nums => `/api/diagram.jpg?highlight=${nums.join(",")}`;
+
+function photoFigure(p) {
+  return `<figure><img src="${esc(p.url)}" alt="${esc(p.caption || "Photo")}" loading="lazy">
+    <figcaption>${p.part ? `<span class="pno">${p.part}</span>` : ""}${esc(p.caption || "")}
+      <span class="source ${esc(p.source)}">${esc(SOURCE_TEXT[p.source] || p.source)}</span></figcaption></figure>`;
+}
+
+function renderParts(selected = null) {
+  state.cond = null; renderConditions();
+  const P = state.parts;
+  $("#detail").innerHTML = `
+    <div class="panel" style="display:grid;gap:10px">
+      <h2>Parts of the unit</h2>
+      <p>Exploded view of a fixed-speed split AC. Pick a part to see where it sits and which faults involve it.</p>
+      <img class="diagram" id="partsDiagram" src="${diagramUrl(selected ? [selected] : [])}" alt="Exploded view of the split AC with numbered parts">
+      <p class="hint">Outlines: ${esc(P.outlined_by)}. Diagram and part photos generated (ChatGPT).</p>
+    </div>
+    <div class="panel"><div class="partgrid">${P.parts.map(p => `
+      <figure data-no="${p.no}" aria-current="${p.no === selected}">
+        ${p.image ? `<img src="${esc(p.image)}" alt="${esc(p.name)}" loading="lazy">` : `<div class="noimg">No photo</div>`}
+        <figcaption><span class="pno">${p.no}</span>${esc(p.name)}
+          <br><span class="hint">${esc(p.unit)}${p.fault_titles.length ? ". " + esc(p.fault_titles.filter((t, i) => p.faults[i] !== "normal").join("; ")) : ""}</span></figcaption>
+      </figure>`).join("")}</div></div>`;
+  $("#detail").querySelectorAll(".partgrid figure").forEach(f => f.addEventListener("click", () => {
+    const n = +f.dataset.no;
+    $("#partsDiagram").src = diagramUrl([n]);
+    $("#detail").querySelectorAll(".partgrid figure").forEach(x => x.setAttribute("aria-current", x === f));
+    $("#partsDiagram").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }));
+}
+
+function alarmBlock(sm, rows) {
+  if (!sm) return "";
+  const codes = sm.codes.length
+    ? `<div class="scroll"><table class="mini"><thead><tr><th>Code</th><th>Times</th><th>Last</th><th>Meaning</th></tr></thead><tbody>${sm.codes.map(c =>
+        `<tr><td><b>${esc(c.code)}</b></td><td class="num">${c.count}</td><td>${esc(c.last.slice(5))}</td><td>${esc(c.meaning)}</td></tr>`).join("")}</tbody></table></div>`
+    : `<p>No codes in the last 7 days.</p>`;
+  return `${codes}<p class="hint" style="margin-top:6px">${esc(sm.note)}</p>`;
+}
+
+const SEVERITY_TEXT = "Severity is how far the fault has developed in this simulated unit. An early fault is only just showing: readings, sound, thermal images and alarms are slightly off. An advanced one is far from normal. FaultLens is never told the severity: it has to find the fault anyway, and early faults are the hard ones.";
+
+function severityBox(band) {
+  if (!band) return "";
+  return `<div class="sevbox"><div><b>Severity: ${Math.round(band.severity * 100)}%, ${esc(band.name.toLowerCase())}.</b> ${esc(band.text)}</div>
+    <div class="sevbar"><span></span><span></span><span></span><i class="sevmark" style="left:${Math.min(99.5, band.severity * 100)}%"></i></div>
+    <div class="sevlabels"><span>Early (under 45%)</span><span>Developing (45-80%)</span><span>Advanced (80-100%)</span></div></div>`;
+}
+
+function photoTile(p) {
+  if (p.reading) return `<figure><div class="metertile"><div class="meterscreen">${p.reading.value} <small>${esc(p.reading.unit)}</small></div>
+      <div class="hint" style="color:#C9D2D8">rated ${p.reading.rated} ${esc(p.reading.unit)} · replace below ${p.reading.limit}</div></div>
+    <figcaption>${p.part ? `<span class="pno">${p.part}</span>` : ""}${esc(p.caption)}<br><span class="phnote">Shown as a reading: the meter photo is of an advanced fault (18.2 uF).</span></figcaption></figure>`;
+  if (p.hidden) return `<figure><div class="phhidden">${esc(p.note)}</div><figcaption>${p.part ? `<span class="pno">${p.part}</span>` : ""}${esc(p.caption || "")}</figcaption></figure>`;
+  return photoFigure(p).replace("</figcaption>", `${p.note ? `<br><span class="phnote">${esc(p.note)}</span>` : ""}</figcaption>`);
+}
+
+function sampleLabel(s, cond) {
+  const n = "Sample " + parseInt(s.id.split("_").pop(), 10);
+  if (cond === "normal" || s.severity == null) return n;
+  return s.severity >= 0.999 ? `${n}, full fault` : `${n}, ${Math.round(s.severity * 100)}% severity`;
+}
+
+function renderConditions() {
+  $("#conditions").innerHTML = `<button type="button" role="listitem" data-c="__parts" aria-current="${state.cond == null && state.view === "parts"}">
+      <b>Parts of the unit</b><small>Exploded view, 18 parts</small></button>` + state.library.map(c => `
+    <button type="button" role="listitem" data-c="${esc(c.condition)}" aria-current="${c.condition === state.cond}">
+      <b>${esc(c.title)}</b>
+      <small>${c.samples.length} sample${c.samples.length === 1 ? "" : "s"}${c.photos.length ? `, ${c.photos.length} photo${c.photos.length === 1 ? "" : "s"}` : ""}</small>
+    </button>`).join("");
+  $("#conditions").querySelectorAll("button").forEach(b => b.addEventListener("click", () =>
+    b.dataset.c === "__parts" ? (state.view = "parts", renderParts()) : (state.view = "fault", selectCondition(b.dataset.c))));
+}
+
+function selectCondition(cond) {
+  state.cond = cond;
+  renderConditions();
+  const c = state.library.find(x => x.condition === cond);
+  state.sample = c.samples[0]?.id || null;
+  renderDetail();
+}
+
+function whereItIs(c) {
+  const nums = state.parts.by_fault[c.condition] || [];
+  if (!nums.length) return "";
+  const pairs = nums.map(n => {
+    const healthy = state.parts.parts.find(p => p.no === n);
+    const bad = c.photos.find(p => p.part === n);
+    if (!healthy?.image && !bad) return "";
+    return `<div><h3 style="margin:10px 0 6px"><span class="pno">${n}</span>${esc(partName(n))}</h3><div class="compare">
+      <figure style="margin:0">${healthy?.image ? `<img src="${esc(healthy.image)}" alt="Healthy ${esc(partName(n))}">` : `<div class="noimg">No photo</div>`}<figcaption class="hint">Healthy</figcaption></figure>
+      <figure style="margin:0">${bad ? `<img src="${esc(bad.url)}" alt="${esc(bad.caption)}"><figcaption class="hint">${esc(bad.caption)}</figcaption>` : `<div class="noimg">Not visibly damaged</div>`}</figure>
+    </div></div>`;
+  }).join("");
+  return `<div class="panel"><h3 style="margin-bottom:10px">Where it is</h3>
+    <img class="diagram" src="${diagramUrl(nums)}" alt="Exploded view with ${esc(nums.map(partName).join(", "))} outlined">
+    <p class="hint" style="margin-top:6px">Outlined: ${nums.map(n => `#${n} ${esc(partName(n))}`).join(", ")}. Outlines ${esc(state.parts.outlined_by)}.</p>
+    ${pairs}</div>`;
+}
+
+async function renderDetail() {
+  const c = state.library.find(x => x.condition === state.cond);
+  const s = c.samples.find(x => x.id === state.sample);
+  const photos = c.photos.length
+    ? `<div class="logphotos">${c.photos.map(photoFigure).join("")}</div>`
+    : `<p class="hint">No photos yet. Put images in <code>library/${esc(c.condition)}/photos/</code> and record where each came from in <code>photos.json</code>.</p>`;
+
+  $("#detail").innerHTML = `
+    <div class="panel" style="display:grid;gap:10px">
+      <h2>${esc(c.title)}</h2>
+      <p>${esc(c.summary)}</p>
+      ${c.condition !== "normal" ? `<p class="hint">${esc(SEVERITY_TEXT)}</p>` : ""}
+      ${c.samples.length ? `<div class="samples" role="tablist">${c.samples.map(x =>
+        `<button type="button" role="tab" data-s="${esc(x.id)}" aria-current="${x.id === state.sample}">${esc(sampleLabel(x, c.condition))}</button>`).join("")}</div>` : ""}
+    </div>
+    <div class="panel" id="sampleBody"><p class="hint">Loading sample…</p></div>
+    <div id="whereBox"></div>
+    ${c.sources?.length ? `<div class="panel"><h3 style="margin-bottom:8px">Public documentation</h3><ul style="margin:0;padding-left:18px">${c.sources.map(x =>
+      `<li><a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.title)}</a><br><span class="hint">${esc(x.supports)}</span></li>`).join("")}</ul></div>` : ""}
+    <div class="panel"><h3 style="margin-bottom:10px">Photos of this fault${c.condition !== "normal" ? ", at this severity" : ""}</h3><div id="photoBox">${photos}</div></div>`;
+  $("#detail").querySelectorAll(".samples button").forEach(b => b.addEventListener("click", () => { state.sample = b.dataset.s; renderDetail(); }));
+  if (!s) { $("#sampleBody").innerHTML = `<p class="hint">No samples for this condition.</p>`; return; }
+
+  const r = await fetch(`/api/library/${encodeURIComponent(c.condition)}/${encodeURIComponent(s.id)}`);
+  const body = await r.json();
+  if (!$("#sampleBody") || state.cond !== c.condition || state.sample !== s.id) return;   // view changed while loading
+  if (r.ok && body.photos) {
+    $("#photoBox").innerHTML = body.photos.length ? `<div class="logphotos">${body.photos.map(photoTile).join("")}</div>` : $("#photoBox").innerHTML;
+    $("#whereBox").innerHTML = whereItIs({ ...c, photos: body.photos.filter(p => !p.hidden) });
+  }
+  if (!r.ok) { $("#sampleBody").innerHTML = `<div class="error">${esc(body.detail)}</div>`; return; }
+  const src = k => `<span class="source ${esc(s.sources[k] || "")}">${esc(SOURCE_TEXT[s.sources[k]] || s.sources[k] || "")}</span>`;
+  $("#sampleBody").innerHTML = `
+    <div style="display:grid;gap:20px">
+      ${severityBox(body.severity_band)}
+      <div class="signals">
+        <div class="signal"><div class="sighead"><h3>Sound at the outdoor unit</h3>${src("sound")}</div>
+          <audio controls preload="none" src="${esc(s.files.sound)}"></audio>
+          <img src="${body.views.spectrogram}" alt="Spectrogram: time left to right, pitch bottom to top">
+          <p class="hint">Time left to right, pitch bottom to top, brighter is louder.</p></div>
+        <div class="signal"><div class="sighead"><h3>Thermal, indoor coil</h3>${src("thermal_indoor")}</div>
+          <img src="${body.views.thermal_indoor}" alt="Thermal image of the indoor coil"></div>
+        <div class="signal"><div class="sighead"><h3>Thermal, outdoor unit</h3>${src("thermal_outdoor")}</div>
+          <img src="${body.views.thermal_outdoor}" alt="Thermal image of the outdoor unit">
+          <p class="hint">Coil on the left; compressor (round) and capacitor (small block) on the right.</p></div>
+      </div>
+      <div><div class="sighead"><h3>Sensor log</h3>${src("sensors")}</div>${sensorTable(body.sensor_summary, true)}</div>
+      <div><div class="sighead"><h3>Alarm history (the unit's fault log)</h3>${src("alarms")}</div>${alarmBlock(body.alarm_summary)}</div>
+      ${patternBlock(body.pattern_match, body.pattern_note, "What the pattern model sees in this sample")}
+      <p class="hint">${esc(body.info.note || "")}</p>
+      <div class="actions">
+        <button type="button" class="btn primary" id="investigateSample">Investigate this sample</button>
+        <div class="downloads">Download:
+          <a href="${esc(s.files.sound)}" download>sound.wav</a>
+          <a href="${esc(s.files.thermal_indoor)}" download>thermal_indoor.png</a>
+          <a href="${esc(s.files.thermal_outdoor)}" download>thermal_outdoor.png</a>
+          <a href="${esc(s.files.sensors)}" download>sensors.csv</a>
+          ${s.files.alarms ? `<a href="${esc(s.files.alarms)}" download>alarms.csv</a>` : ""}
+        </div>
+      </div>
+      <p class="hint">Download these, change nothing or swap in your own recording, and upload them under Investigate. That is the same path a technician uses in the field.</p>
+    </div>`;
+  $("#investigateSample").addEventListener("click", () => {
+    $("#libSample").value = `${c.condition}/${s.id}`;
+    state.files = []; renderFileList();
+    showView("investigate");
+    $("#go").click();
+  });
+}
+
+/* ---------- pattern match block (shared) ---------- */
+function patternBlock(pm, note, heading = "Pattern match") {
+  if (!pm) return note ? `<div class="pm"><h3>${esc(heading)}</h3><p class="hint">${esc(note)}</p></div>` : "";
+  const bars = pm.fused.slice(0, 4).map(f => `
+    <div class="bar-row"><span>${esc(title(f.condition))}</span>
+      <span class="track"><i style="width:${f.probability * 100}%"></i></span><span class="num">${pct(f.probability)}</span></div>`).join("");
+  const rows = Object.entries(pm.signals).map(([m, v]) => `
+    <tr><td>${esc(SIGNAL_NAMES[m] || m)}</td><td>${esc(title(v.top))}</td><td class="num">${pct(v.confidence)}</td>
+      <td class="${v.agrees_with_fused ? "agree" : "disagree"}">${v.agrees_with_fused ? "Agrees" : "Disagrees"}</td>
+      <td>${v.key_measurements.length ? `<ul class="why-list">${v.key_measurements.map(k =>
+        `<li>${esc(k.measure)}: <b>${k.value}</b> (healthy about ${k.healthy_typical})</li>`).join("")}</ul>` : `<span class="hint">Nothing unusual</span>`}</td></tr>`).join("");
+  const missing = pm.signals_missing.length ? `<p class="hint">Not provided: ${esc(pm.signals_missing.map(m => SIGNAL_NAMES[m] || m).join(", "))}</p>` : "";
+  return `<div class="pm">
+    <h3>${esc(heading)}</h3>
+    <div class="bars">${bars}</div>
+    <div class="scroll"><table><thead><tr><th>Signal</th><th>Best match on its own</th><th>Confidence</th><th>Combined answer</th><th>Why</th></tr></thead><tbody>${rows}</tbody></table></div>
+    ${missing}
+    <p class="hint">Trained on simulated reference signatures: ${esc(pm.trained_on)}.</p>
+  </div>`;
+}
+
+/* ---------- files ---------- */
+const drop = $("#drop");
+$("#media").addEventListener("change", e => { state.files = [...e.target.files]; $("#libSample").value = ""; renderFileList(); });
+["dragover", "dragenter"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach(t => drop.addEventListener(t, () => drop.classList.remove("over")));
+drop.addEventListener("drop", e => { e.preventDefault(); state.files = [...e.dataTransfer.files]; $("#libSample").value = ""; renderFileList(); });
+$("#libSample").addEventListener("change", () => { if ($("#libSample").value) { state.files = []; $("#media").value = ""; renderFileList(); } });
+function guessType(f) {
+  const n = f.name.toLowerCase();
+  if (n.endsWith(".wav")) return "Sound";
+  if (n.endsWith(".csv")) return n.includes("alarm") ? "Alarm history" : "Sensor log (or alarm history, checked on upload)";
+  if (/\.(mp4|mov|webm)$/.test(n)) return "Video";
+  if (n.includes("thermal")) return n.includes("indoor") ? "Thermal, indoor coil" : "Thermal, outdoor unit";
+  return "Photo (or thermal image, checked on upload)";
+}
+function renderFileList() {
+  $("#mediaList").innerHTML = state.files.map(f => `<li>${esc(f.name)}: ${esc(guessType(f))}</li>`).join("");
+}
+
+/* ---------- notes ---------- */
+function renderNotes() {
+  $("#notes").innerHTML = state.notes.map((n, i) =>
+    `<li><span>${esc(n)}</span><button type="button" aria-label="Remove note" data-i="${i}">✕</button></li>`).join("");
+}
+$("#notes").addEventListener("click", e => {
+  if (e.target.dataset.i !== undefined) { state.notes.splice(+e.target.dataset.i, 1); renderNotes(); }
+});
+function addNote(text) { text = text.trim(); if (text) { state.notes.push(text); renderNotes(); } }
+$("#addNote").addEventListener("click", () => { addNote($("#noteText").value); $("#noteText").value = ""; });
+$("#noteText").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("#addNote").click(); } });
+
+/* ---------- voice: record, convert to 16 kHz mono WAV, transcribe ---------- */
+let recorder = null, chunks = [], recLive = null;
+function startLive(stream) {
+  const box = $("#recLive"), cv = $("#recWave"), g = cv.getContext("2d");
+  const track = stream.getAudioTracks()[0], st = track.getSettings ? track.getSettings() : {};
+  $("#recMic").textContent = [track.label || "Microphone", st.sampleRate ? `${st.sampleRate / 1000} kHz` : "",
+    st.channelCount ? (st.channelCount === 1 ? "mono" : `${st.channelCount} channels`) : "",
+    st.noiseSuppression ? "noise suppression on" : ""].filter(Boolean).join(" · ");
+  box.hidden = false;
+  const ac = new AudioContext(), an = ac.createAnalyser(); an.fftSize = 2048;
+  ac.createMediaStreamSource(stream).connect(an);
+  const data = new Float32Array(an.fftSize), t0 = Date.now(), color = getComputedStyle(document.body).getPropertyValue("--high") || "#c33";
+  let raf, quiet = 0;
+  const draw = () => {
+    const wpx = Math.round(box.clientWidth - 20) * devicePixelRatio;
+    if (cv.width !== wpx) { cv.width = wpx; cv.height = 56 * devicePixelRatio; }
+    an.getFloatTimeDomainData(data);
+    g.clearRect(0, 0, cv.width, cv.height); g.lineWidth = 2 * devicePixelRatio; g.strokeStyle = color; g.beginPath();
+    const mid = cv.height / 2;
+    for (let i = 0; i < data.length; i += 4) { const x = i / data.length * cv.width, y = mid - Math.max(-1, Math.min(1, data[i] * 2)) * (mid - 2); i ? g.lineTo(x, y) : g.moveTo(x, y); }
+    g.stroke();
+    const rms = Math.sqrt(data.reduce((a, v) => a + v * v, 0) / data.length);
+    quiet = rms < 0.01 ? quiet + 1 : 0;
+    $("#recLevel").textContent = rms < 0.01 ? (quiet > 90 ? "Very quiet: move closer or check the microphone." : "Listening…") : rms < 0.05 ? "Hearing you (quiet)" : "Hearing you";
+    const s = Math.floor((Date.now() - t0) / 1000); $("#recTime").textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+    raf = requestAnimationFrame(draw);
+  };
+  draw();
+  recLive = () => { cancelAnimationFrame(raf); ac.close(); box.hidden = true; recLive = null; };
+}
+$("#rec").addEventListener("click", async () => {
+  const btn = $("#rec");
+  if (recorder) { recorder.stop(); return; }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    recorder = new MediaRecorder(stream); chunks = [];
+    recorder.ondataavailable = e => chunks.push(e.data);
+    recorder.onstop = async () => {
+      if (recLive) recLive();
+      stream.getTracks().forEach(t => t.stop());
+      recorder = null; btn.setAttribute("aria-pressed", "false"); btn.textContent = "Transcribing…"; btn.disabled = true;
+      setStage("voice", "running");
+      try {
+        const tv = Date.now(), wav = await toWav16k(new Blob(chunks));
+        const fd = new FormData(); fd.append("audio", wav, "note.wav");
+        const r = await fetch("/api/transcribe", { method: "POST", body: fd });
+        const body = await r.json();
+        if (!r.ok) throw new Error(body.detail);
+        addNote(body.text); setStage("voice", "done", ((Date.now() - tv) / 1000).toFixed(1));
+      } catch (err) { showError("Voice note not transcribed: " + err.message + " Type the note instead."); setStage("voice", ""); }
+      btn.disabled = false; btn.textContent = "Record a voice note";
+    };
+    recorder.start(); startLive(stream); btn.setAttribute("aria-pressed", "true"); btn.textContent = "Stop and transcribe";
+  } catch { showError("Microphone not available. Allow microphone access, or type the note."); }
+});
+async function toWav16k(blob) {
+  const ctx = new AudioContext();
+  const decoded = await ctx.decodeAudioData(await blob.arrayBuffer());
+  const off = new OfflineAudioContext(1, Math.ceil(decoded.duration * 16000), 16000);
+  const src = off.createBufferSource(); src.buffer = decoded; src.connect(off.destination); src.start();
+  const pcm = (await off.startRendering()).getChannelData(0);
+  const buf = new ArrayBuffer(44 + pcm.length * 2), v = new DataView(buf);
+  const w = (o, s) => [...s].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+  w(0, "RIFF"); v.setUint32(4, 36 + pcm.length * 2, true); w(8, "WAVEfmt ");
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, 16000, true); v.setUint32(28, 32000, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+  w(36, "data"); v.setUint32(40, pcm.length * 2, true);
+  pcm.forEach((s, i) => v.setInt16(44 + i * 2, Math.max(-1, Math.min(1, s)) * 0x7fff, true));
+  return new Blob([buf], { type: "audio/wav" });
+}
+
+/* ---------- pipeline ---------- */
+function setStage(name, st, secs) {
+  const el = $(`.stage[data-stage="${name}"]`);
+  el.dataset.state = st || "";
+  const small = el.querySelector("small");
+  small.dataset.base ??= small.textContent;
+  small.textContent = secs !== undefined ? `${small.dataset.base}, ${secs}s` : small.dataset.base;
+}
+
+/* ---------- investigate ---------- */
+$("#evidence").addEventListener("submit", async e => {
+  e.preventDefault();
+  const go = $("#go"); go.disabled = true; go.textContent = "Investigating…";
+  ["parts", "pattern", "agent", "safety", "checker"].forEach(s => setStage(s, ""));
+  const photos = state.files.some(f => /\.(jpe?g|webp|mp4|mov|webm)$/i.test(f.name) || (/\.png$/i.test(f.name) && !/thermal/i.test(f.name)));
+  setStage("parts", $("#findParts").checked && photos ? "running" : "skipped");
+  setStage("pattern", "running"); setStage("agent", "running");
+  setStage("checker", $("#useChecker").checked ? "" : "skipped");
+
+  const fd = new FormData();
+  state.files.forEach(f => fd.append("files", f));
+  fd.append("sensor_csv", $("#csv").value);
+  fd.append("library_sample", $("#libSample").value);
+  fd.append("notes", JSON.stringify(state.notes));
+  fd.append("find_parts", $("#findParts").checked);
+  fd.append("use_checker", $("#useChecker").checked);
+  try {
+    const r = await fetch("/api/investigate", { method: "POST", body: fd });
+    const body = await r.json();
+    if (!r.ok) throw new Error(body.detail || r.statusText);
+    const t = body.timings || {};
+    if (t.parts !== undefined) setStage("parts", "done", t.parts);
+    setStage("pattern", body.pattern_match ? "done" : "skipped", t.pattern);
+    setStage("agent", "done", t.agent); setStage("safety", "done", t.safety);
+    if ($("#useChecker").checked) setStage("checker", "done", t.checker);
+    Object.assign(state.titles, body.titles || {});
+    state.rounds.push(body); state.shown = state.rounds.length - 1;
+    render();
+  } catch (err) {
+    ["parts", "pattern", "agent"].forEach(s => setStage(s, ""));
+    showError(err.message);
+  }
+  go.disabled = false; go.textContent = "Investigate";
+});
+
+function showError(msg) {
+  const box = document.createElement("div"); box.className = "error"; box.setAttribute("role", "alert"); box.textContent = msg;
+  $("#out").prepend(box); setTimeout(() => box.remove(), 9000);
+}
+
+function render() {
+  const res = state.rounds[state.shown], a = res.assessment, chk = res.checker;
+  const confident = a.status === "confident";
+  const roundsNav = state.rounds.length > 1
+    ? `<div class="rounds">Round ${state.rounds.map((_, i) =>
+        `<button type="button" data-r="${i}" aria-current="${i === state.shown}">${i + 1}</button>`).join("")}</div>` : "";
+
+  const v = res.views || {};
+  const signalViews = (v.thermal_indoor || v.thermal_outdoor || v.spectrogram) ? `<div class="signals">
+      ${v.spectrogram ? `<div class="signal"><h3>Sound</h3><img src="${v.spectrogram}" alt="Spectrogram of the uploaded sound"></div>` : ""}
+      ${v.thermal_indoor ? `<div class="signal"><h3>Thermal, indoor coil</h3><img src="${v.thermal_indoor}" alt="Indoor coil thermal image"></div>` : ""}
+      ${v.thermal_outdoor ? `<div class="signal"><h3>Thermal, outdoor unit</h3><img src="${v.thermal_outdoor}" alt="Outdoor unit thermal image"></div>` : ""}
+    </div>` : "";
+  const photos = res.photos.length ? `<div class="frames">${res.photos.map((f, i) =>
+    `<figure><img src="${f.image}" alt="Photo ${i}"><figcaption>Photo ${i}${f.parts.length ? ": " + esc(f.parts.join(", ")) : ""}</figcaption></figure>`).join("")}</div>` : "";
+
+  const causes = a.hypotheses.map((h, i) => `
+    <div class="cause" data-open="${i === 0}">
+      <button type="button" aria-expanded="${i === 0}">
+        <span class="pct num">${Math.round(h.probability * 100)}%</span>
+        <span>${esc(h.title)}</span>
+        <span class="meter"><i style="width:${h.probability * 100}%"></i></span>
+      </button>
+      <div class="why">
+        <div><b>Supports</b><ul>${(h.evidence_for || []).map(x => `<li>${esc(x)}</li>`).join("") || "<li>Nothing specific cited</li>"}</ul></div>
+        ${(h.evidence_against || []).length ? `<div class="against"><b>Against</b><ul>${h.evidence_against.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>` : ""}
+      </div>
+    </div>`).join("");
+
+  const verdict = chk ? `<div class="verdict"><b class="${chk.verdict}">${chk.verdict === "accept" ? "Second check agrees" : "Second check disagrees"}</b>
+      <span class="hint">${esc(chk.checker_model)}${chk.checker_saw_images === false ? " (text only, images not accepted)" : ""}${chk.checker_heard_sound ? ", listened to the recording" : ""}</span></div>
+      ${chk.reasons?.length ? `<ul class="hint" style="margin:0">${chk.reasons.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}` : "";
+  const safety = (a.safety_warnings || []).map(w => `<div class="tag danger"><h3>Before the next check</h3><p>${esc(w)}</p></div>`).join("");
+  const next = a.next_check ? `<div class="check"><h3>Next check</h3><p>${esc(a.next_check.do)}</p>
+      <p class="hint">If this is the fault: ${esc(a.next_check.expect_if_fault)}</p></div>` : "";
+  const need = !confident && a.observation_request ? `<div class="tag" id="needTag"><h3>Needed before deciding</h3><p>${esc(a.observation_request)}</p>
+      <div class="answer"><input type="text" id="answer" placeholder="What did you find?" aria-label="Your finding">
+      <button type="button" class="btn" id="answerBtn">Add and re-check</button></div></div>` : "";
+  const received = res.received?.length ? `<details class="panel"><summary>What FaultLens received (${res.received.length})</summary>
+      <ul class="received" style="margin-top:8px">${res.received.map(x => `<li>${esc(x.file)}: ${esc(x.as)}</li>`).join("")}</ul></details>` : "";
+
+  $("#out").innerHTML = `<div class="results">
+    ${roundsNav}
+    <div class="panel headline">
+      <span class="status ${confident ? "confident" : "more"}">${confident ? "Likely cause found" : "Not certain yet"}</span>
+      <p class="summary">${esc(a.summary)}</p>
+      ${verdict}
+    </div>
+    ${need}${safety}
+    ${next ? `<div class="panel">${next}</div>` : ""}
+    <div><h3 style="margin-bottom:10px">Possible causes</h3><div class="causes">${causes || '<p class="hint">No causes ranked.</p>'}</div></div>
+    ${res.pattern_match || res.pattern_note ? `<div class="panel">${patternBlock(res.pattern_match, res.pattern_note)}</div>` : ""}
+    ${signalViews ? `<div class="panel">${signalViews}</div>` : ""}
+    ${photos ? `<div class="panel"><h3 style="margin-bottom:10px">Photos</h3>${photos}</div>` : ""}
+    ${res.sensor_summary ? `<div class="panel">${sensorTable(res.sensor_summary)}</div>` : ""}
+    ${res.alarm_summary ? `<div class="panel"><h3 style="margin-bottom:8px">Alarm history</h3>${alarmBlock(res.alarm_summary)}</div>` : ""}
+    ${received}
+    <details class="panel"><summary>Agent steps (${res.seconds}s, ${res.usage.input_tokens.toLocaleString()} tokens in, ${res.usage.output_tokens.toLocaleString()} out)</summary>
+      <pre class="trace">${esc(JSON.stringify(res.trace, null, 1))}</pre></details>
+  </div>`;
+
+  $("#out").querySelectorAll(".cause > button").forEach(b => b.addEventListener("click", () => {
+    const c = b.parentElement, open = c.dataset.open !== "true";
+    c.dataset.open = open; b.setAttribute("aria-expanded", open);
+  }));
+  $("#out").querySelectorAll(".rounds button").forEach(b => b.addEventListener("click", () => { state.shown = +b.dataset.r; render(); }));
+  const ab = $("#answerBtn");
+  if (ab) {
+    const send = () => { const val = $("#answer").value.trim(); if (!val) return $("#answer").focus(); addNote(val); $("#go").click(); };
+    ab.addEventListener("click", send);
+    $("#answer").addEventListener("keydown", e => { if (e.key === "Enter") send(); });
+  }
+}
+
+const READING_NAMES = {
+  return_air_c: "Return air temperature (C)", supply_air_c: "Supply air temperature (C)",
+  outdoor_air_c: "Outside air temperature (C)", suction_psig: "Suction pressure (psi)",
+  discharge_psig: "Discharge pressure (psi)", compressor_amps: "Compressor current (A)",
+  outdoor_fan_amps: "Outdoor fan current (A)", room_sensor_c: "Unit's own room reading (C)",
+  delta_t_c: "Air temperature drop across indoor unit (C)", room_sensor_offset_c: "Room reading minus actual room air (C)",
+  compressor_off_minutes: "Minutes compressor was off", compressor_spikes_over_20a: "Compressor current spikes over 20 A",
+};
+const reading = k => READING_NAMES[k] || k.replaceAll("_", " ");
+function sensorTable(s, open = false) {
+  if (!s) return "";
+  const flags = s.out_of_range || {};
+  const cls = k => { const f = flags[k] || ""; return f.startsWith("LOW") ? "low" : f.startsWith("HIGH") ? "high" : ""; };
+  const word = c => c === "low" ? "Below normal" : c === "high" ? "Above normal" : "";
+  const L = s.levels || {};
+  const chip = k => { const l = L[k]; if (!l) return ""; const t = { normal: "Within normal", slight: "Slightly out", far: "Far out" }[l.level];
+    return `<span class="lvl ${l.level}">${t}${l.direction ? (l.direction === "low" ? ", low" : ", high") : ""}</span>`; };
+  const norm = k => L[k] ? `${L[k].normal[0]} – ${L[k].normal[1]}` : "";
+  const rows = Object.entries(s.stats).map(([k, v]) => { const c = cls(k);
+    return `<tr><td>${esc(reading(k))}</td><td class="num ${c}">${v.median}</td><td class="num">${v.min} – ${v.max}</td><td class="num hint">${norm(k)}</td><td>${chip(k) || `<span class="${c}">${word(c)}</span>`}</td></tr>`; }).join("");
+  const derived = Object.entries(s.derived).map(([k, v]) => { const c = cls(k);
+    return `<tr><td>${esc(reading(k))}</td><td class="num ${c}">${v}</td><td></td><td class="num hint">${norm(k)}</td><td>${chip(k) || `<span class="${c}">${word(c)}</span>`}</td></tr>`; }).join("");
+  const missing = s.channels_missing.length ? `<p class="hint" style="margin-top:8px">Not in this log: ${esc(s.channels_missing.map(reading).join(", "))}</p>` : "";
+  return `<details ${open ? "open" : ""}><summary>Sensor readings (${s.minutes} minutes)</summary>
+    <div class="scroll"><table style="margin-top:10px"><thead><tr><th>Reading</th><th>Typical</th><th>Range</th><th>Normal</th><th>How far off</th></tr></thead><tbody>${rows}${derived}</tbody></table></div>
+    <div class="lvlkey"><span class="lvl normal">Within normal</span><span class="lvl slight">Slightly out</span> up to half its normal range outside <span class="lvl far">Far out</span> more than that</div>${missing}</details>`;
+}
+
+/* ---------- how it was tested ---------- */
+async function loadVision() {
+  const r = await fetch("/api/vision-report");
+  const body = await r.json();
+  if (!r.ok) { $("#visionReport").innerHTML = `<h2>Reading the images (earlier build, Muse Spark)</h2><p class="hint">${esc(body.detail)}</p>`; return; }
+  const v = body.meta || body.open, o = body.open, mm = body.meta;
+  const line = (label, all, mild, strong) => `<tr><td>${strong ? `<b>${label}</b>` : label}</td><td class="num ${strong ? "score" : ""}">${pct(all)}</td><td class="num">${pct(mild)}</td></tr>`;
+  const rows = [];
+  if (mm) rows.push(line(`Muse Spark (${esc(mm.model)}), pictures only`, mm.accuracy.muse_spark_images_only, mm.accuracy_mild_faults.muse_spark_images_only, true));
+  if (o) rows.push(line(`Muse Spark Open (${esc(o.model.split("/").pop())}, Fireworks), pictures only`, o.accuracy.muse_spark_images_only, o.accuracy_mild_faults.muse_spark_images_only, true));
+  rows.push(line("Pattern model, same three signals", v.accuracy.pattern_model_same_signals, v.accuracy_mild_faults.pattern_model_same_signals));
+  if (mm) rows.push(line("Muse Spark and pattern model combined", mm.accuracy.both_combined, mm.accuracy_mild_faults.both_combined));
+  rows.push(`<tr><td class="hint">Guessing</td><td class="num hint">${pct(v.chance)}</td><td></td></tr>`);
+  const openBy = o ? o.rows : [];
+  const detail = v.rows.map((x, i) => { const ov = openBy[i]; const mv = mm ? mm.rows[i] : null;
+    return `<tr><td>${esc(title(x.condition))}</td><td class="num">${x.condition === "normal" ? "" : Math.round(x.severity * 100) + "%"}</td>
+      ${mm ? `<td class="${mv.muse_spark === x.condition ? "right" : "wrong"}">${esc(title(mv.muse_spark) || "no answer")}</td>` : ""}
+      ${o ? `<td class="${ov.muse_spark === x.condition ? "right" : "wrong"}">${esc(title(ov.muse_spark) || "no answer")}</td>` : ""}
+      <td>${esc((mv || ov).what_muse_spark_saw)}</td></tr>`; }).join("");
+  $("#visionReport").innerHTML = `
+    <div><h2>Reading the images (earlier build, Meta's models)</h2><p class="hint">${esc(v.what)} ${v.units} units; both models see exactly the same units.</p></div>
+    <table><thead><tr><th>Who diagnoses</th><th>Correct</th><th>Correct, mild faults</th></tr></thead><tbody>${rows.join("")}</tbody></table>
+    <details><summary>What the models said, unit by unit</summary><div class="scroll"><table style="margin-top:8px">
+      <thead><tr><th>Actual</th><th>Severity</th>${mm ? "<th>Muse Spark</th>" : ""}${o ? "<th>Muse Spark Open</th>" : ""}<th>What it saw</th></tr></thead><tbody>${detail}</tbody></table></div></details>`;
+}
+
+let reportLoaded = false;
+async function loadPartcheck() {
+  const r = await fetch("/api/partcheck-report");
+  const b = await r.json();
+  if (!r.ok) { $("#partcheckReport").innerHTML = `<h2>Check a part on library photos</h2><p class="hint">${esc(b.detail)}</p>`; return; }
+  const f = x => x && x.of ? `${x.right} of ${x.of}` : "–";
+  const rows = b.rows.filter(x => !x.error).map(x => `<tr><td>${esc(x.photo.split("/").slice(-2).join("/"))}</td><td>${esc(x.kind)}</td>
+    <td class="${x.part_right ? "right" : "wrong"}">#${x.part_got}</td><td class="${x.condition_right ? "right" : "wrong"}">${esc(x.condition_got || "")}</td>
+    <td>${x.stage_expected ? `<span class="${x.stage_within_one ? "right" : "wrong"}">${x.stage_got ?? "–"} (true ${x.stage_expected})</span>` : ""}</td>
+    <td>${x.level_expected ? `<span class="${x.level_right ? "right" : "wrong"}">${esc(x.level_got || "none")} (true ${esc(x.level_expected)})</span>` : ""}</td>
+    <td class="num">${x.seconds}s</td></tr>`).join("");
+  $("#partcheckReport").innerHTML = `<div><h2>Check a part on library photos</h2>
+    <p class="hint">${esc(b.note)} ${b.photos} photos, ${esc(b.model)}${b.part_given ? ", part given" : ", part identified by FaultLens"}.${b.mock ? " Offline mode: these are not real results." : ""}</p></div>
+    <div class="scroll"><table><thead><tr><th>Right part</th><th>Right condition</th><th>Wear stage within one</th><th>Severity level exact</th><th>Per check</th></tr></thead>
+      <tbody><tr><td class="num score">${f(b.right_part)}</td><td class="num">${f(b.right_condition)}</td><td class="num">${f(b.wear_stage_within_one)}</td><td class="num">${f(b.severity_level_exact)}</td>
+      <td class="num">${b.avg_seconds}s, ${b.avg_tokens.toLocaleString()} tokens</td></tr></tbody></table></div>
+    <details><summary>Every photo</summary><div class="scroll"><table style="margin-top:8px"><thead><tr><th>Photo</th><th>Kind</th><th>Part</th><th>Condition</th><th>Wear stage</th><th>Severity level</th><th>Time</th></tr></thead><tbody>${rows}</tbody></table></div></details>`;
+}
+
+async function loadSavedEval() {
+  const r = await fetch("/api/eval-report");
+  if (!r.ok) return;
+  const b = await r.json();
+  renderEval(b);
+  $("#evalOut").insertAdjacentHTML("afterbegin", `<p class="hint">Saved run: ${b.cases || ""} cases, ${esc(b.run_at || "")}, live models.</p>`);
+}
+
+async function loadReport() {
+  if (reportLoaded) return;
+  loadVision();
+  loadPartcheck();
+  loadSavedEval();
+  const r = await fetch("/api/pattern-report");
+  const body = await r.json();
+  if (!r.ok) { $("#patternReport").innerHTML = `<h2>Pattern model</h2><p class="hint">${esc(body.detail)}</p>`; return; }
+  reportLoaded = true;
+  const all = body.test_all_severities, mild = body.test_mild_faults_only;
+  const sig = Object.keys(all.single_signal_accuracy);
+  const rows = sig.map(m => `<tr><td>${esc(SIGNAL_NAMES[m] || m)} only</td><td class="num">${pct(all.single_signal_accuracy[m])}</td><td class="num">${pct(mild.single_signal_accuracy[m])}</td></tr>`).join("");
+  const loo = Object.entries(all.fused_accuracy_missing_one_signal).map(([k, v]) =>
+    `<tr><td>All signals except ${esc(SIGNAL_NAMES[k.replace("without_", "")] || k)}</td><td class="num">${pct(v)}</td><td class="num">${pct(mild.fused_accuracy_missing_one_signal[k])}</td></tr>`).join("");
+  const labels = all.confusion_matrix.labels, cm = all.confusion_matrix.rows_true_cols_predicted;
+  const cmHtml = `<table><thead><tr><th>Actual \\ predicted</th>${labels.map(l => `<th title="${esc(title(l))}">${esc(title(l).split(" ").slice(0, 2).join(" "))}</th>`).join("")}</tr></thead>
+    <tbody>${cm.map((row, i) => `<tr><td>${esc(title(labels[i]))}</td>${row.map((n, j) => `<td class="num" style="${i === j ? "font-weight:600" : n ? "color:var(--high)" : "color:var(--rule)"}">${n}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+  $("#patternReport").innerHTML = `
+    <div><h2>Pattern model</h2>
+      <p class="hint">${esc(body.data)} Trained on ${esc(body.trained_on)}. Tested on ${all.cases} separately generated units it never saw, and on ${mild.cases} units with only mild faults (15-35% severity).</p></div>
+    <table><thead><tr><th>Signals used</th><th>Correct, all severities</th><th>Correct, mild faults</th></tr></thead>
+      <tbody>${rows}<tr><td><b>All four combined</b></td><td class="num score">${pct(all.fused_accuracy)}</td><td class="num score">${pct(mild.fused_accuracy)}</td></tr>${loo}</tbody></table>
+    <p>No single signal is reliable on its own. Combined, they are, and the answer holds up when any one signal is missing.</p>
+    ${all.fused_average_confidence != null ? `<p><b>Honest confidence:</b> when all four signals are combined, the model is ${pct(all.fused_average_confidence)} sure on average and right ${pct(all.fused_accuracy)} of the time (mild faults: ${pct(mild.fused_average_confidence)} sure, ${pct(mild.fused_accuracy)} right). Each signal's confidence was adjusted on a separate set of units so it does not claim more than it knows.</p>` : ""}
+    <details><summary>Where it still gets confused (all severities)</summary><div style="overflow-x:auto;margin-top:8px">${cmHtml}</div></details>`;
+}
+
+$("#runEval").addEventListener("click", async () => {
+  const btn = $("#runEval"); btn.disabled = true; btn.textContent = "Running…";
+  $("#evalOut").innerHTML = `<p class="hint">Running ${$("#evalLimit").value} cases. This can take a few minutes with live models.</p>`;
+  try {
+    const r = await fetch(`/api/eval?limit=${$("#evalLimit").value}`, { method: "POST" });
+    const body = await r.json();
+    if (!r.ok) throw new Error(body.detail || r.statusText);
+    renderEval(body);
+  } catch (err) { $("#evalOut").innerHTML = `<div class="error">Test run failed: ${esc(err.message)}</div>`; }
+  btn.disabled = false; btn.textContent = "Run the test set";
+});
+function renderEval({ report, results }) {
+  const names = { rules: "Sensor rules only (baseline)", agent_sensors: "FaultLens, sensors only", agent_full: "FaultLens, sensors + note + alarm history + check" };
+  const rows = Object.entries(report.by_mode).map(([m, r]) => `<tr>
+    <td>${esc(names[m] || m)}</td>
+    <td class="num score">${pct(r.all.top1_accuracy)}</td>
+    <td class="num">${pct(r.easy.top1_accuracy)}</td><td class="num">${pct(r.hard.top1_accuracy)}</td>
+    <td class="num">${pct(r.all.asked_for_more_evidence)}</td><td class="num">${pct(r.all.accuracy_when_confident)}</td>
+    <td class="num">${r.all.evidence ? pct(r.all.evidence.evidence_grounded) : "–"}</td></tr>`).join("");
+  const detail = results.map(r => `<tr><td>${esc(r.case)}</td><td>${esc(names[r.mode] || r.mode)}</td>
+    <td>${esc(title(r.predicted))}</td><td>${r.correct ? "Correct" : "Wrong"}</td><td>${r.status === "confident" ? "Confident" : "Asked for more"}</td>
+    <td>${r.citations ? (r.citations.problems.length ? r.citations.problems.map(p => `<span class="wrong">${esc(p.evidence)}: ${esc(p.problems.join(", "))}</span>`).join("<br>") : `${r.citations.items} of ${r.citations.items} grounded`) : ""}</td></tr>`).join("");
+  $("#evalOut").innerHTML = `
+    ${report.mock ? '<p class="error">Offline mode: FaultLens rows repeat the rule baseline. Run with live models for real numbers.</p>' : ""}
+<div class="scroll"><table><thead><tr><th>Method</th><th>Correct</th><th>Easy</th><th>Hard</th><th>Asked for more</th><th>Correct when confident</th><th>Evidence passing the automatic check</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="hint" style="margin-top:6px"><b>Evidence passing the automatic check:</b> share of the evidence FaultLens gave that refers only to what it was given: every number it quotes is in the readings, it never quotes a held-back sensor or a picture it was not shown, and every alarm code it names is in the log. Checked automatically, item by item. It is a consistency check, not a fact check: it cannot judge whether the reasoning in a sentence is right.</p>
+    <details style="margin-top:12px"><summary>Every case</summary>
+      <div class="scroll"><table style="margin-top:8px"><thead><tr><th>Case</th><th>Method</th><th>Answer</th><th>Result</th><th>Status</th><th>Evidence check</th></tr></thead><tbody>${detail}</tbody></table></div></details>`;
+}
+
+/* ---------- play a job ---------- */
+const job = { id: null, data: null, suggested: null, busy: false };
+const POWER_WORD = { on: "unit running", off: "power off", any: "" };
+
+function initPlay() {
+  const sel = $("#practiceSel");
+  sel.innerHTML = Object.entries(state.titles).map(([id, t]) => `<option value="${esc(id)}">${esc(t)}</option>`).join("");
+}
+$("#newMystery").addEventListener("click", () => startJob(""));
+$("#newPractice").addEventListener("click", () => startJob($("#practiceSel").value));
+
+async function startJob(condition) {
+  const r = await fetch("/api/game/new", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ condition }) });
+  const body = await r.json();
+  if (!r.ok) return alertLog(body.detail);
+  job.id = body.id; job.data = body; job.suggested = null;
+  $("#playStart").hidden = true; $("#playJob").hidden = false;
+  $("#log").innerHTML = ""; $("#concludePanel").hidden = true;
+  $("#coachBars").innerHTML = `<p class="hint">Waiting for the first step.</p>`;
+  $("#patternBars").innerHTML = `<p class="hint">No sound, thermal image or readings collected yet.</p>`;
+  renderJob();
+  logMsg("system", body.practice ? `Practice job: ${esc(state.titles[body.condition])}.` : "Mystery job. The fault is hidden.");
+  await advise();
+}
+
+function renderJob() {
+  const d = job.data;
+  $("#ticket").innerHTML = `<div class="who">Job ${esc(d.id.toUpperCase())}${d.practice ? ", practice" : ""}</div>
+    <h2>Customer says</h2><p class="complaint">"${esc(d.complaint)}"</p>`;
+  $("#power").dataset.on = d.power_on;
+  $("#powerState").textContent = d.power_on ? "On, running" : "Isolated, safe to open";
+  $("#powerBtn").textContent = d.power_on ? "Isolate power" : "Restore power";
+  const checks = d.steps.filter(s => !s.action.startsWith("power")).length;
+  $("#jobStatus").innerHTML = `<span>${checks} check${checks === 1 ? "" : "s"} done</span>${d.blocked ? `<span class="wrong">${d.blocked} unsafe attempt${d.blocked === 1 ? "" : "s"} stopped</span>` : ""}`;
+  const groups = {};
+  d.actions.forEach(a => (groups[a.group] ||= []).push(a));
+  $("#menu").innerHTML = Object.entries(groups).map(([g, acts]) => `<div><h3>${esc(g)}</h3><div class="acts">${acts.map(a => `
+    <button type="button" class="act" data-a="${esc(a.id)}" data-done="${a.done}" data-suggested="${a.id === job.suggested}" ${a.done || job.busy ? "disabled" : ""}
+      title="${esc(a.how)}"><span>${esc(a.title)}${a.certified ? " (certified)" : ""}</span><small>${esc(POWER_WORD[a.power])}</small></button>`).join("")}</div></div>`).join("");
+  $("#menu").querySelectorAll(".act").forEach(b => b.addEventListener("click", () => doAction(b.dataset.a)));
+  $("#concludeBtn").disabled = job.busy;
+}
+
+function logMsg(kind, html) {
+  const div = document.createElement("div");
+  div.className = "msg " + kind; div.innerHTML = html;
+  $("#log").appendChild(div); div.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  return div;
+}
+function alertLog(text) { logMsg("system", `<span class="wrong">${esc(text)}</span>`); }
+
+function setBusy(b) { job.busy = b; renderJob(); $("#askBtn").disabled = b; }
+
+async function doAction(id) {
+  if (job.busy) return;
+  if (id === "power_off" || id === "power_on") return togglePower(id === "power_on");
+  if (id === "conclude") return openConclude();
+  setBusy(true);
+  try {
+    const r = await fetch(`/api/game/${job.id}/action`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: id }) });
+    const body = await r.json();
+    if (!r.ok) throw new Error(body.detail);
+    job.data = body.job;
+    const f = body.found;
+    if (f.blocked) {
+      logMsg("tech", `<span class="who">You tried: ${esc(f.title)}</span><div class="tag danger" style="padding-left:52px"><p>${esc(f.message)}</p></div>`);
+      setBusy(false); return;
+    }
+    let media = "";
+    const v = body.views;
+    if (v.sound_url) media += `<audio controls src="${v.sound_url}"></audio><img src="${v.spectrogram}" alt="Spectrogram of the outdoor unit">`;
+    if (v.thermal) media += `<img src="${v.thermal}" alt="Thermal image">`;
+    if (v.sensor_summary) media += sensorTable(v.sensor_summary, true);
+    if (f.alarms) media += `<div class="panel" style="margin-top:8px">${alarmBlock(f.alarms.summary)}</div>`;
+    if (f.card) media += `<div class="cardview"><img src="${esc(f.card.image)}" alt="Previous job card">
+      ${f.card.fields ? `<div><p class="hint">Read by ${esc(f.card.model)}, ${f.card.seconds}s</p><pre class="json">${esc(JSON.stringify(f.card.fields, null, 2))}</pre></div>` : ""}</div>`;
+    if (f.photos) media += `<div class="logphotos">${f.photos.map(p => photoFigure(p) .replace("</figure>",
+      p.part ? `<button type="button" class="btn checkbtn" data-check="${esc(p.url)}">Check this part</button></figure>` : "</figure>")).join("")}</div>`;
+    const msg = logMsg("tech", `<span class="who">You: ${esc(f.title)}</span><p class="hint">${esc(f.how)}</p>
+      ${f.warning ? `<p class="wrong">${esc(f.warning)}</p>` : ""}<p><b>${esc(f.finding)}</b></p>${media}`);
+    msg.querySelectorAll("[data-check]").forEach(btn => btn.addEventListener("click", () => {
+      const out = document.createElement("div");
+      out.className = "pcout panel"; out.style.marginTop = "10px";
+      msg.appendChild(out); btn.remove();
+      runPartCheck({ library_url: btn.dataset.check, job_id: job.id }, out, true);
+    }));
+    renderPattern(body.pattern_match);
+    setBusy(false);
+    await advise();
+  } catch (e) { alertLog(e.message); setBusy(false); }
+}
+
+async function togglePower(on) {
+  if (job.busy) return;
+  const r = await fetch(`/api/game/${job.id}/power`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ on }) });
+  const body = await r.json();
+  job.data = body.job;
+  logMsg("system", esc(body.message));
+  const wasSuggested = job.suggested === (on ? "power_on" : "power_off");
+  job.suggested = null;
+  renderJob();
+  if (wasSuggested) await advise();   // FaultLens asked for this; let it say what comes next
+}
+$("#powerBtn").addEventListener("click", () => togglePower(!job.data.power_on));
+
+function actionTitle(id) { return (job.data.actions.find(a => a.id === id) || {}).title || id; }
+
+async function advise(question = "") {
+  setBusy(true);
+  const thinking = logMsg("coach", `<span class="who">FaultLens</span><p class="thinking">Thinking…</p>`);
+  try {
+    const r = await fetch(`/api/game/${job.id}/advise`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question }) });
+    const a = await r.json();
+    if (!r.ok) throw new Error(a.detail);
+    job.suggested = a.next_action_id;
+    const doBtn = a.next_action_id && a.next_action_id !== "conclude"
+      ? `<button type="button" class="btn do" data-do="${esc(a.next_action_id)}">${esc(a.next_title)}</button>`
+      : `<button type="button" class="btn do" data-do="conclude">Make the diagnosis</button>`;
+    thinking.innerHTML = `<span class="who">FaultLens: ${esc(a.source)}${a.seconds ? `, ${a.seconds}s` : ""}</span>
+      <p>${esc(a.message)}</p>${a.safety_note ? `<p class="wrong">${esc(a.safety_note)}</p>` : ""}
+      ${a.ready_to_conclude && a.fix ? `<p><b>Fix:</b> ${esc(a.fix)}</p>` : ""}${doBtn}
+      ${a.error ? `<p class="hint">Model error: ${esc(a.error)}</p>` : ""}`;
+    thinking.querySelector("[data-do]").addEventListener("click", e => doAction(e.target.dataset.do));
+    renderCoachBars(a.hypotheses);
+  } catch (e) { thinking.innerHTML = `<span class="wrong">${esc(e.message)}</span>`; }
+  setBusy(false);
+}
+
+function bars(list, n = 3) {
+  return list.slice(0, n).map(x => `<div class="bar-row"><span>${esc(x.title || state.titles[x.condition || x.fault_id] || "")}</span>
+    <span class="track"><i style="width:${x.probability * 100}%"></i></span><span class="num">${pct(x.probability)}</span></div>`).join("");
+}
+function renderCoachBars(h) { $("#coachBars").innerHTML = h?.length ? bars(h) : `<p class="hint">No ranking yet.</p>`; }
+function renderPattern(pm) {
+  if (!pm) return;
+  const agree = Object.entries(pm.signals).map(([m, v]) =>
+    `<span class="${v.agrees_with_fused ? "right" : "wrong"}">${esc(SIGNAL_NAMES[m])}: ${v.agrees_with_fused ? "agrees" : "says " + esc(title(v.top))}</span>`).join(", ");
+  $("#patternBars").innerHTML = bars(pm.fused) + `<p class="hint" style="margin-top:6px;font-size:.82rem">${agree}</p>`;
+}
+
+$("#askBtn").addEventListener("click", ask);
+$("#askText").addEventListener("keydown", e => { if (e.key === "Enter") ask(); });
+async function ask() {
+  const q = $("#askText").value.trim();
+  if (!q || job.busy || !job.id) return;
+  $("#askText").value = "";
+  logMsg("tech", `<span class="who">You asked</span><p>${esc(q)}</p>`);
+  await advise(q);
+}
+
+$("#concludeBtn").addEventListener("click", openConclude);
+function openConclude() {
+  const p = $("#concludePanel"); p.hidden = false;
+  p.innerHTML = `<h3 style="margin-bottom:10px">What is wrong with this unit?</h3>
+    <div class="choices">${job.data.faults.map(f => `<label><input type="radio" name="choice" value="${esc(f.fault_id)}"> ${esc(f.title)}</label>`).join("")}</div>
+    <div class="row" style="margin-top:12px"><button type="button" class="btn primary" id="submitDiag" style="width:auto">Submit diagnosis</button>
+    <button type="button" class="btn" id="cancelDiag">Keep investigating</button></div>`;
+  p.scrollIntoView({ behavior: "smooth" });
+  $("#cancelDiag").addEventListener("click", () => p.hidden = true);
+  $("#submitDiag").addEventListener("click", async () => {
+    const c = p.querySelector("input[name=choice]:checked");
+    if (!c) return;
+    setBusy(true);
+    p.innerHTML = `<p class="thinking">Second model checking FaultLens's call, then revealing the fault…</p>`;
+    let s;
+    try {
+      const r = await fetch(`/api/game/${job.id}/conclude`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ choice: c.value }) });
+      s = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(s.detail || `The server answered ${r.status}.`);
+    } catch (err) {
+      // Never leave the job stuck: say what went wrong and let the technician try again.
+      p.innerHTML = `<div class="error">The diagnosis could not be submitted: ${esc(err.message === "Failed to fetch" ? "the connection dropped." : err.message)}</div>
+        <div class="row" style="margin-top:12px"><button type="button" class="btn primary" id="retryDiag" style="width:auto">Try again</button></div>`;
+      $("#retryDiag").addEventListener("click", openConclude);
+      return;
+    } finally {
+      setBusy(false);
+    }
+    const chk = s.checker;
+    p.innerHTML = `<div class="reveal">
+      <h2>The fault was: ${esc(s.actual_title)}${s.actual !== "normal" ? ` <span class="hint">(${Math.round(s.severity * 100)}% severity)</span>` : ""}</h2>
+      ${s.actual_cause ? `<p><b>Cause on this unit:</b> ${esc(s.actual_cause)}</p>` : ""}
+      ${severityBox(s.severity_band)}
+      ${s.faulty_parts?.length ? `<img class="diagram" src="${diagramUrl(s.faulty_parts.map(p => p.no))}" alt="Faulty part outlined on the exploded view">
+        <p class="hint">${s.faulty_parts.map(p => `#${p.no} ${esc(p.name)}`).join(", ")}. Outlines ${esc(s.outlined_by)}.</p>` : ""}
+      <div class="verdicts">
+        <div>You said<br><b class="${s.player_correct ? "right" : "wrong"}">${esc(s.player_title)}</b></div>
+        <div>FaultLens said<br>${s.coach_ready === false
+          ? `<b>Still investigating</b><br><span class="hint">${s.coach_title ? `Leaning towards ${esc(s.coach_title)}, but` : "It was"} not ready to conclude.</span>`
+          : `<b class="${s.coach_correct ? "right" : "wrong"}">${esc(s.coach_title || "no call yet")}</b>`}</div>
+        <div>Second check<br><b class="${chk?.verdict === "accept" ? "right" : "wrong"}">${chk ? (chk.verdict === "accept" ? "Agreed with FaultLens" : chk.verdict === "reject" ? "Disagreed with FaultLens" : "Unavailable") : "Not run"}</b>
+          ${chk?.checker_model ? `<br><span class="hint">${esc(chk.checker_model)}${chk.checker_heard_sound ? ", listened to the recording" : ""}</span>` : ""}</div>
+      </div>
+      <div><span class="points num">${s.points}</span> points
+        <ul class="hint">${s.breakdown.map(([t, v]) => `<li>${esc(t)}: ${v > 0 ? "+" : ""}${v}</li>`).join("") || "<li>Clean job</li>"}</ul>
+        <p class="hint">${s.checks_used} checks in ${Math.floor(s.seconds / 60)} min ${s.seconds % 60} s.</p></div>
+      <p><b>Fix:</b> ${esc(s.fix)}</p>
+      ${s.sources?.length ? `<p class="hint">Public guidance: ${s.sources.map(x => `<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.title)}</a>`).join("; ")}</p>` : ""}
+      <div class="row"><button type="button" class="btn primary" id="againBtn" style="width:auto">Next job</button></div>
+    </div>`;
+    $("#againBtn").addEventListener("click", () => { $("#playJob").hidden = true; $("#playStart").hidden = false; });
+  });
+}
+
+/* ---------- check a part ---------- */
+fetch("/api/parts").then(r => r.json()).then(P => {
+  $("#pcPart").insertAdjacentHTML("beforeend", P.parts.filter(p => p.image).map(p => `<option value="${p.no}">#${p.no} ${esc(p.name)}</option>`).join(""));
+});
+fetch("/api/library").then(r => r.json()).then(async b => {
+  const lib = (b.conditions || b.library || b);
+  const picks = [];
+  try { const P = await fetch("/api/parts").then(r => r.json()); (P.wear_examples || []).forEach(x => picks.push(x)); (P.severity_examples || []).forEach(x => picks.push(x)); } catch (e) {}
+  (Array.isArray(lib) ? lib : []).forEach(c => (c.photos || []).forEach(p => { if (c.condition !== "normal" && p.part) picks.push(p); }));
+  $("#pcPick").innerHTML = picks.map(p => `<button type="button" data-u="${esc(p.url)}" title="${esc(p.caption)}"><img src="${esc(p.url)}" alt="${esc(p.caption)}" loading="lazy"></button>`).join("");
+  $("#pcPick").querySelectorAll("button").forEach(btn => btn.addEventListener("click", () => {
+    $("#pcPick").querySelectorAll("button").forEach(x => x.setAttribute("aria-current", x === btn));
+    runPartCheck({ library_url: btn.dataset.u }, $("#pcPanel"));
+  }));
+});
+$("#pcFile").addEventListener("change", e => { if (e.target.files[0]) runPartCheck({ file: e.target.files[0] }, $("#pcPanel")); });
+const pcDrop = $("#pcDrop");
+["dragover", "dragenter"].forEach(t => pcDrop.addEventListener(t, e => { e.preventDefault(); pcDrop.classList.add("over"); }));
+["dragleave", "drop"].forEach(t => pcDrop.addEventListener(t, () => pcDrop.classList.remove("over")));
+pcDrop.addEventListener("drop", e => { e.preventDefault(); if (e.dataTransfer.files[0]) runPartCheck({ file: e.dataTransfer.files[0] }, $("#pcPanel")); });
+
+async function runPartCheck({ file = null, library_url = "", job_id = "" }, target, compact = false) {
+  target.innerHTML = `<p class="thinking">Comparing with the healthy part and known damage…</p>`;
+  const fd = new FormData();
+  if (file) fd.append("file", file);
+  if (library_url) fd.append("library_url", library_url);
+  if (job_id) fd.append("job_id", job_id);
+  if (!compact) { fd.append("part_no", $("#pcPart").value); fd.append("complaint", $("#pcComplaint").value); }
+  try {
+    const r = await fetch("/api/partcheck", { method: "POST", body: fd });
+    const res = await r.json();
+    if (!r.ok) throw new Error(res.detail);
+    target.innerHTML = partCheckHtml(res, compact);
+  } catch (e) { target.innerHTML = `<div class="error">${esc(e.message)}</div>`; }
+}
+
+function wearHtml(w) {
+  return `<div class="wear"><h3 style="margin:0">How long has it got?</h3>
+    <div class="wearstrip" style="--n:${w.strip.length}">${w.strip.map(x => `<figure class="${x.stage === w.stage ? "here" : ""}">
+      ${x.is_query ? `<div class="missing">This photo's own stage, left out</div>` : `<img src="${esc(x.url)}" alt="Stage ${x.stage}: ${esc(x.label)}">`}
+      <figcaption>${x.stage}. ${esc(x.label)}</figcaption></figure>`).join("")}</div>
+    <p style="margin:0"><span class="lifebig">Stage ${w.stage} of ${w.of}: ${esc(w.label)}.</span> ${esc(w.life)}.</p>
+    <p style="margin:0"><b>Preventive action:</b> ${esc(w.action_text)}.</p>
+    ${w.known_stage ? `<p class="hint" style="margin:0">Known stage of this photo: ${w.known_stage}.</p>` : ""}
+    <p class="hint" style="margin:0">${esc(w.note)}</p></div>`;
+}
+
+function severityHtml(v) {
+  const names = { early: "Early", developing: "Developing", advanced: "Advanced" };
+  return `<div class="wear"><h3 style="margin:0">How far has it gone?</h3>
+    <div class="wearstrip" style="--n:3">${v.strip.map(x => `<figure class="${x.level === v.level ? "here" : ""}">
+      ${x.is_query ? `<div class="missing">This photo's own level, left out</div>` : `<img src="${esc(x.url)}" alt="${esc(x.caption)}">`}
+      <figcaption>${names[x.level]}</figcaption></figure>`).join("")}</div>
+    <p style="margin:0"><span class="lifebig">${names[v.level]}:</span> ${esc((v.strip.find(x => x.level === v.level) || {}).caption || v.sign)}.</p>
+    ${v.known_level ? `<p class="hint" style="margin:0">Known level of this photo: ${names[v.known_level].toLowerCase()}.</p>` : ""}
+    <p class="hint" style="margin:0">Gemini matched the photo to the closest of the early, developing and advanced reference photos of this sign.</p></div>`;
+}
+
+function partCheckHtml(res, compact) {
+  const cls = res.condition === "damaged" ? "bad" : res.condition === "healthy" ? "good" : "unclear";
+  const k = res.known;
+  const known = k ? `<div class="known ${res.agrees_with_known ? "yes" : "no"}"><b>Known answer:</b> #${k.part_no}, ${esc(k.condition)}${k.caption ? `: ${esc(k.caption)}` : ""}${k.fault_title ? ` (${esc(k.fault_title)})` : ""}.
+      <b>${res.agrees_with_known ? "✓ FaultLens agrees" : "✗ FaultLens got this wrong"}</b>${res.agreement_rule ? ` <span class="hint">(${esc(res.agreement_rule)})</span>` : ""}
+      <br><span class="hint">This photo was left out of the references, so it could not be matched to itself.</span></div>` : "";
+  const imgs = `<div class="pcimgs">
+      <figure><img src="${res.outlined || res.photo}" alt="Technician's photo"><figcaption class="hint">${res.outlined ? esc(res.outline_note) : "Your photo" + (res.outline_note ? `. ${esc(res.outline_note)}` : "")}</figcaption></figure>
+      ${res.healthy_reference ? `<figure><img src="${esc(res.healthy_reference)}" alt="Healthy reference"><figcaption class="hint">Healthy ${esc(res.part_name.toLowerCase())}</figcaption></figure>` : ""}
+      ${compact ? "" : `<figure><img src="${esc(res.diagram)}" alt="Where the part sits"><figcaption class="hint">Where it sits (#${res.part_no})</figcaption></figure>`}
+    </div>`;
+  return `<div style="display:grid;gap:12px">
+    <div class="pcverdict"><h2 style="margin:0"><span class="pno">${res.part_no}</span>${esc(res.part_name)}</h2>
+      <span class="pctag ${cls}">${esc(res.condition)}</span><span class="pctag ${res.action === "replace" || res.action === "now" ? "bad" : res.action === "no_action" ? "good" : "unclear"}">${esc(res.action_text)}</span></div>
+    <p>${esc(res.what_i_see)}</p>
+    ${res.role_text ? `<p><b>${esc(res.role_text)}.</b>${res.fault_titles.length ? ` Points to: ${esc(res.fault_titles.join("; "))}.` : ""}
+      ${res.matches_complaint && res.matches_complaint !== "no complaint given" ? ` Matches the complaint: <b>${esc(res.matches_complaint)}</b>.` : ""}</p>` : ""}
+    ${res.next_check ? `<p><b>To confirm:</b> ${esc(res.next_check)}</p>` : ""}
+    ${res.wear ? wearHtml(res.wear) : ""}
+    ${res.severity ? severityHtml(res.severity) : ""}
+    ${known}
+    ${imgs}
+    <p class="hint">${res.identified_by ? `Part identified by ${esc(res.identified_by)}. ` : ""}${esc(res.model)}, ${res.seconds}s, confidence ${Math.round((res.confidence || 0) * 100)}%.
+      Compared with: ${esc((res.references_sent || []).join("; ") || "none")}.</p>
+  </div>`;
+}
+
+
+/* ---------- anomaly lab ---------- */
+const LAB_COLOURS = { normal: "#5B6770", clogged_air_filter: "#B7791F", condenser_fan_failure: "#C8372D", low_refrigerant: "#1E63C6",
+  dirty_condenser_coil: "#7A5230", failed_compressor_capacitor: "#7B3FA0", faulty_room_thermistor: "#0F8A7A" };
+const LAB_SHORT = { normal: "No fault (control run)", clogged_air_filter: "Clogged filter", condenser_fan_failure: "Outdoor fan failure",
+  low_refrigerant: "Low refrigerant", dirty_condenser_coil: "Dirty outdoor coil", failed_compressor_capacitor: "Failed run capacitor",
+  faulty_room_thermistor: "Faulty room sensor" };
+const lab = { signal: "sensors", fault: null };
+$("#labInject").innerHTML = Object.keys(LAB_SHORT).filter(f => f !== "normal").concat(["normal"]).map(f =>
+  `<button type="button" data-f="${f}" style="--fc:${LAB_COLOURS[f]}">${f === "normal" ? "No fault (control)" : "Inject " + esc(LAB_SHORT[f].toLowerCase())}</button>`).join("");
+$("#labInject").querySelectorAll("button").forEach(b => b.addEventListener("click", () => { lab.fault = b.dataset.f; labRun(); }));
+$("#labSignal").querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+  lab.signal = b.dataset.s;
+  $("#labSignal").querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b));
+  if (lab.fault) labRun();
+}));
+
+async function labRun() {
+  $("#labInject").querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x.dataset.f === lab.fault));
+  $("#labOut").innerHTML = `<p class="thinking">Building the signal and sliding the window…</p>`;
+  try {
+    const r = await fetch("/api/anomaly", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fault: lab.fault, signal: lab.signal }) });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail);
+    $("#labSetup").textContent = `Window ${d.window} ${d.unit}, moved ${d.step} ${d.unit} at a time. A stretch counts as a fault when the model is at least ${Math.round(d.sure * 100)}% sure for ${d.hold} windows in a row.`;
+    lab.last = { fault: d.fault, signal: d.signal, seed: d.seed };
+    $("#labOut").innerHTML = labChart(d) + labVerdict(d) +
+      `<div style="margin-top:10px"><button type="button" class="btn" id="labExplain" style="width:auto">Ask FaultLens to explain</button>
+        <span class="hint">Gemini reads this run and explains it. One model call.</span><div id="labExplainOut"></div></div>` +
+      (d.sound_url ? `<p style="margin-top:8px"><audio controls preload="none" src="${esc(d.sound_url)}"></audio> <span class="hint">Listen to it.</span></p>` : "") +
+      `<p class="hint" style="margin-top:6px">Simulated signal, from the same physical models the pattern model was trained on. New unit and new fault timing every run.</p>`;
+    $("#labExplain").addEventListener("click", labExplain);
+  } catch (e) { $("#labOut").innerHTML = `<div class="error">${esc(e.message)}</div>`; }
+}
+
+async function labExplain() {
+  const btn = $("#labExplain"); btn.disabled = true;
+  $("#labExplainOut").innerHTML = `<p class="thinking">Gemini is reading the run…</p>`;
+  try {
+    const r = await fetch("/api/anomaly/explain", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(lab.last) });
+    const x = await r.json();
+    if (!r.ok) throw new Error(x.detail);
+    $("#labExplainOut").innerHTML = `<div class="msg coach" style="margin-top:10px"><span class="who">FaultLens: ${esc(x.model)}, ${x.seconds}s</span><p>${esc(x.text)}</p></div>`;
+    btn.remove();
+  } catch (e) { $("#labExplainOut").innerHTML = `<div class="error">${esc(e.message)}</div>`; btn.disabled = false; }
+}
+
+function labChart(d) {
+  const W = 1200, top = 50, plotH = 230, truthY = top + plotH + 16, H = truthY + 54, L = d.length;
+  const x = t => (t / L) * W;
+  let bands = "", plot = "", row = 0;
+  for (const s of d.segments) {
+    if (s.label === "normal") continue;
+    row = 1 - row;   // alternate two label rows so neighbouring labels never overlap
+    const c = LAB_COLOURS[s.label] || "#888";
+    bands += `<rect x="${x(s.start)}" y="${top}" width="${x(s.end) - x(s.start)}" height="${plotH}" fill="${c}" fill-opacity=".14" stroke="${c}" stroke-dasharray="6 4" stroke-width="1.5"/>
+      <text x="${Math.min(x(s.start) + 6, W - 230)}" y="${top - 8 - row * 20}" fill="${c}" font-size="15" font-weight="700" font-family="Barlow Semi Condensed, sans-serif" letter-spacing=".04em">${esc(LAB_SHORT[s.label].toUpperCase())} ${Math.round(s.confidence * 100)}%</text>`;
+  }
+  if (d.series.kind === "spectrogram") {
+    plot = `<image href="${d.series.image}" x="0" y="${top}" width="${W}" height="${plotH}" preserveAspectRatio="none" opacity=".92"/>`;
+  } else {
+    const vals = d.series.values.concat(d.series.compare ? d.series.compare.values : []);
+    const nr = d.series.normal_range || [];
+    let lo = Math.min(...vals, nr[0] ?? Infinity), hi = Math.max(...vals, nr[1] ?? -Infinity);
+    const pad = (hi - lo) * .08 || 1; lo -= pad; hi += pad;
+    const y = v => top + plotH - ((v - lo) / (hi - lo)) * plotH;
+    const path = arr => arr.map((v, i) => `${i ? "L" : "M"}${(x(i + .5)).toFixed(1)},${y(v).toFixed(1)}`).join("");
+    if (nr.length === 2) plot += `<rect x="0" y="${y(nr[1])}" width="${W}" height="${y(nr[0]) - y(nr[1])}" fill="#1E9E4A" fill-opacity=".07"/>
+      <text x="${W - 6}" y="${y(nr[1]) - 4}" text-anchor="end" font-size="12" fill="#1E7A3C">normal range</text>`;
+    if (d.series.compare) plot += `<path d="${path(d.series.compare.values)}" fill="none" stroke="#9AA4AB" stroke-width="1.5"/>`;
+    plot += `<path d="${path(d.series.values)}" fill="none" stroke="#16222B" stroke-width="1.6"/>
+      <text x="6" y="${top + 16}" font-size="13" fill="#16222B">${esc(d.series.name)}${d.series.compare ? " (grey: " + esc(d.series.compare.name.toLowerCase()) + ")" : ""}</text>`;
+  }
+  let truth = "";
+  if (d.truth) {
+    const [a, b] = d.truth, c = LAB_COLOURS[d.fault];
+    const n = d.weights.length, grad = d.weights.map((w, i) => `<stop offset="${(i / (n - 1) * 100).toFixed(1)}%" stop-color="${c}" stop-opacity="${w.toFixed(2)}"/>`).join("");
+    truth = `<defs><linearGradient id="ramp">${grad}</linearGradient></defs>
+      <rect x="0" y="${truthY}" width="${W}" height="12" fill="url(#ramp)" stroke="#C9CFD3"/>
+      <text x="${Math.min(x(a), W - 470)}" y="${truthY + 30}" font-size="13" fill="#16222B">injected here (true fault, fading in, then repaired at ${b}${d.unit})</text>`;
+  } else {
+    truth = `<rect x="0" y="${truthY}" width="${W}" height="12" fill="none" stroke="#C9CFD3"/><text x="0" y="${truthY + 28}" font-size="13" fill="#16222B">nothing injected: every flagged stretch is a false alarm</text>`;
+  }
+  const ticks = [0, .25, .5, .75, 1].map(f => `<text x="${Math.min(W - 4, Math.max(4, f * W))}" y="${truthY - 4}" font-size="11" fill="#5B6770" text-anchor="${f === 0 ? "start" : f === 1 ? "end" : "middle"}">${Math.round(f * L)} ${d.unit}</text>`).join("");
+  return `<svg viewBox="0 0 ${W} ${H + 12}" role="img" aria-label="Signal with detected fault stretches and the true fault stretch">${plot}${bands}${truth}${ticks}</svg>`;
+}
+
+function labVerdict(d) {
+  const s = d.score, u = d.unit, t = d.titles[d.fault];
+  const called = d.segments.filter(x => x.label !== "normal").map(x =>
+    `<b style="color:${LAB_COLOURS[x.label]}">${esc(LAB_SHORT[x.label])}</b> (${Math.round(x.confidence * 100)}%, ${x.start}-${x.end} ${u})`).join(", ") || "nothing";
+  if (!d.truth) return `<p class="labverdict" style="margin-top:12px">Control run, nothing injected. Model called: ${called}. ${s.false_alarms ? `<span class="vbad">${s.false_alarms} false alarm${s.false_alarms > 1 ? "s" : ""}</span>` : `<span class="vgood">No false alarms</span>`}.</p>`;
+  const parts = [
+    s.right_fault ? `<span class="vgood">right fault found</span>, ${Math.round(s.coverage * 100)}% of the true stretch covered, first caught ${s.delay} ${u} after it began` : `<span class="vbad">fault not found</span>`,
+    s.wrong_label_time ? `named the wrong fault for ${s.wrong_label_time} ${u} inside the stretch (${esc(s.wrong_labels.map(l => LAB_SHORT[l]).join(", "))}), usually while it was still mild` : "",
+    s.slow_to_clear ? `slow to clear by ${s.slow_to_clear} ${u} after the repair (each window still holds part of the fault)` : "",
+    s.false_alarms ? `<span class="vbad">${s.false_alarms} false alarm${s.false_alarms > 1 ? "s" : ""}</span> while healthy (${s.false_alarm_time} ${u})` : `<span class="vgood">no false alarms</span>`,
+  ].filter(Boolean);
+  return `<p class="labverdict" style="margin-top:12px">Injected: <b style="color:${LAB_COLOURS[d.fault]}">${esc(t)}</b> from ${d.truth[0]} to ${d.truth[1]} ${u}. Model called: ${called}.<br>${parts.join(" · ")}.</p>`;
+}
+
+fetch("/api/anomaly-report").then(r => r.ok ? r.json() : null).then(rep => {
+  if (!rep) { $("#labReport").innerHTML = `<p class="hint">Not measured yet.</p>`; return; }
+  const block = (sig, name) => {
+    const v = rep.signals[sig], u = v.unit;
+    const rows = Object.entries(v.faults).map(([f, x]) => f === "normal"
+      ? `<tr><td>${esc(LAB_SHORT[f])}</td><td class="num">–</td><td class="num">–</td><td class="num">–</td><td class="num">${x.runs_with_false_alarms}/${x.runs}</td></tr>`
+      : `<tr><td>${esc(LAB_SHORT[f])}</td><td class="num">${x.right_fault}/${x.runs}</td><td class="num">${Math.round(x.coverage * 100)}%</td><td class="num">${x.median_delay ?? "–"} ${u}</td><td class="num">${x.runs_with_false_alarms}/${x.runs}</td></tr>`).join("");
+    return `<h3 style="margin:12px 0 6px">${name}</h3><div class="scroll"><table class="mini"><thead><tr><th>Injected</th><th>Right fault found</th><th>Stretch covered</th><th>Caught after (median)</th><th>Runs with a false alarm</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  };
+  $("#labReport").innerHTML = `<h2>Measured over ${rep.runs_per_fault} runs per fault</h2>
+    <p class="hint">${esc(rep.note)} Each run is a new unit with new fault timing.</p>
+    ${block("sensors", "Sensor log")}${block("sound", "Sound")}
+    <p class="hint" style="margin-top:8px">Sound alone misses about half the clogged filters: a blocked indoor filter barely changes how the outdoor unit sounds. That is why FaultLens combines signals.</p>`;
+});
+/* ---------- job cards ---------- */
+const cards = { list: [], fields: [], current: null };
+fetch("/api/jobcards").then(r => r.json()).then(b => {
+  cards.list = b.cards; cards.fields = b.fields;
+  $("#cardList").innerHTML = b.cards.map(c => `<button type="button" data-c="${esc(c.id)}">
+    <b>${esc(c.date)}: ${esc(c.complaint)}</b><small>${esc(c.title)}</small></button>`).join("");
+  $("#cardList").querySelectorAll("button").forEach(btn => btn.addEventListener("click", () => showCard(btn.dataset.c)));
+});
+function showCard(id) {
+  const c = cards.list.find(x => x.id === id); cards.current = c;
+  $("#cardList").querySelectorAll("button").forEach(b => b.setAttribute("aria-current", b.dataset.c === id));
+  $("#cardPanel").innerHTML = `<div class="cardview">
+    <div><img src="${esc(c.image)}" alt="Handwritten job card, ${esc(c.date)}">
+      <p class="hint" style="margin-top:6px">Generated card, fictional customer. <a href="${esc(c.pdf)}" download>Download PDF</a></p></div>
+    <div id="cardResult"><button type="button" class="btn primary" id="readCard" style="width:auto">Read this card</button>
+      <p class="hint" style="margin-top:8px">Gemini reads the handwriting. Takes a few seconds.</p></div></div>`;
+  $("#readCard").addEventListener("click", () => readCard({ card_id: id }));
+  if (window.innerWidth < 960) $("#cardPanel").scrollIntoView({ behavior: "smooth" });
+}
+$("#cardFile").addEventListener("change", e => { if (e.target.files[0]) readCard({ file: e.target.files[0] }); });
+const cardDrop = $("#cardDrop");
+["dragover", "dragenter"].forEach(t => cardDrop.addEventListener(t, e => { e.preventDefault(); cardDrop.classList.add("over"); }));
+["dragleave", "drop"].forEach(t => cardDrop.addEventListener(t, () => cardDrop.classList.remove("over")));
+cardDrop.addEventListener("drop", e => { e.preventDefault(); if (e.dataTransfer.files[0]) readCard({ file: e.dataTransfer.files[0] }); });
+
+async function readCard({ card_id = "", file = null }) {
+  if (file) {
+    cards.current = null;
+    $("#cardList").querySelectorAll("button").forEach(b => b.setAttribute("aria-current", "false"));
+    $("#cardPanel").innerHTML = `<div class="cardview"><div id="cardImg"><p class="hint">${esc(file.name)}</p></div><div id="cardResult"></div></div>`;
+  }
+  $("#cardResult").innerHTML = `<p class="thinking">Reading the handwriting…</p>`;
+  const fd = new FormData();
+  if (card_id) fd.append("card_id", card_id); else fd.append("file", file);
+  try {
+    const r = await fetch("/api/jobcard/read", { method: "POST", body: fd });
+    const res = await r.json();
+    if (!r.ok) throw new Error(res.detail);
+    if (file) $("#cardImg").innerHTML = `<img src="${res.image}" alt="Uploaded job card">`;
+    const label = k => (cards.fields.find(f => f.key === k) || {}).label || k;
+    const rows = res.score ? res.score.rows.map(x => `<tr><td>${esc(x.label)}</td><td>${esc(x.read || "")}</td><td class="hint">${esc(x.on_card)}</td>
+        <td class="${x.match ? "match" : "nomatch"}">${x.match ? "✓" : "✗"}</td></tr>`).join("")
+      : Object.entries(res.fields).map(([k, v]) => `<tr><td>${esc(label(k))}</td><td>${esc(v ?? "")}</td></tr>`).join("");
+    $("#cardResult").innerHTML = `
+      <p class="hint">${esc(res.model)}, ${res.seconds}s</p>
+      ${res.score ? `<p><span class="score">${res.score.fields_right} of ${res.score.fields_total}</span> fields read exactly right</p>` : ""}
+      <div class="scroll"><table class="mini"><thead><tr><th>Field</th><th>Read as</th>${res.score ? "<th>On the card</th><th></th>" : ""}</tr></thead><tbody>${rows}</tbody></table></div>
+      <h3 style="margin:14px 0 6px">As JSON</h3><pre class="json">${esc(JSON.stringify(res.fields, null, 2))}</pre>
+      <details><summary>Full transcription</summary><pre class="trace" style="white-space:pre-wrap">${esc(res.transcription)}</pre></details>`;
+  } catch (e) { $("#cardResult").innerHTML = `<div class="error">${esc(e.message)}</div>`; }
+}
+</script>
+</body>
+</html>

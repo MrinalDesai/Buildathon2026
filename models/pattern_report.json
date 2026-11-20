@@ -1,0 +1,212 @@
+{
+ "data": "SIMULATED reference signatures only (faultlens/simulate.py). Not field recordings.",
+ "trained_on": "1400 simulated units (200 per condition), fault severity 15-100%",
+ "calibration": {
+  "temperatures": {
+   "sound": 1.69,
+   "thermal_indoor": 2.36,
+   "thermal_outdoor": 2.0,
+   "sensors": 1.79,
+   "fused": 0.87
+  },
+  "fused_before": {
+   "accuracy": 0.974,
+   "average_confidence": 0.976,
+   "calibration_error": 0.008
+  },
+  "fused_after": {
+   "accuracy": 0.986,
+   "average_confidence": 0.981,
+   "calibration_error": 0.007
+  }
+ },
+ "test_all_severities": {
+  "cases": 420,
+  "single_signal_accuracy": {
+   "sound": 0.824,
+   "thermal_indoor": 0.545,
+   "thermal_outdoor": 0.833,
+   "sensors": 0.9
+  },
+  "fused_accuracy": 0.981,
+  "fused_average_confidence": 0.983,
+  "fused_calibration_error": 0.014,
+  "fused_accuracy_missing_one_signal": {
+   "without_sound": 0.981,
+   "without_thermal_indoor": 0.943,
+   "without_thermal_outdoor": 0.962,
+   "without_sensors": 0.976
+  },
+  "confusion_matrix": {
+   "labels": [
+    "normal",
+    "clogged_air_filter",
+    "condenser_fan_failure",
+    "low_refrigerant",
+    "dirty_condenser_coil",
+    "failed_compressor_capacitor",
+    "faulty_room_thermistor"
+   ],
+   "rows_true_cols_predicted": [
+    [
+     60,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     2,
+     58,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     60,
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     1,
+     2,
+     0,
+     57,
+     0,
+     0,
+     0
+    ],
+    [
+     3,
+     0,
+     0,
+     0,
+     57,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     0,
+     0,
+     0,
+     60,
+     0
+    ],
+    [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     60
+    ]
+   ]
+  }
+ },
+ "test_mild_faults_only": {
+  "cases": 420,
+  "single_signal_accuracy": {
+   "sound": 0.652,
+   "thermal_indoor": 0.46,
+   "thermal_outdoor": 0.7,
+   "sensors": 0.738
+  },
+  "fused_accuracy": 0.936,
+  "fused_average_confidence": 0.954,
+  "fused_calibration_error": 0.033,
+  "fused_accuracy_missing_one_signal": {
+   "without_sound": 0.945,
+   "without_thermal_indoor": 0.812,
+   "without_thermal_outdoor": 0.862,
+   "without_sensors": 0.95
+  },
+  "confusion_matrix": {
+   "labels": [
+    "normal",
+    "clogged_air_filter",
+    "condenser_fan_failure",
+    "low_refrigerant",
+    "dirty_condenser_coil",
+    "failed_compressor_capacitor",
+    "faulty_room_thermistor"
+   ],
+   "rows_true_cols_predicted": [
+    [
+     59,
+     1,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     12,
+     48,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     60,
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     8,
+     0,
+     0,
+     52,
+     0,
+     0,
+     0
+    ],
+    [
+     6,
+     0,
+     0,
+     0,
+     54,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     0,
+     0,
+     0,
+     60,
+     0
+    ],
+    [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     60
+    ]
+   ]
+  }
+ },
+ "seconds": 139.2
+}

@@ -1,0 +1,13 @@
+.git
+.env
+.env.*
+!.env.example
+.venv
+venv
+**/__pycache__
+**/*.pyc
+data/runs
+models/*.joblib
+*.zip
+manuals
+raw_footage
